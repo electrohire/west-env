@@ -1,5 +1,28 @@
 # Change Ledger
 
+## 2026-11-13 — Fork: J-Link passthrough fixes + Beningo Zephyr skills in the image
+
+Objective: Make host-side J-Link flashing actually work end to end on Windows (owner order, iSMART bench), and ship Jacob Beningo's Zephyr AI skills inside the build container.
+
+What was done:
+- west_env/flash.py: commander script now written to a real temp file passed via -CommanderScript (was /dev/stdin, nonexistent on Windows, REQ-JLINK-006); J-Link discovery probes both JLinkExe.exe and JLink.exe (REQ-JLINK-006); FlashManager takes serial + interface, emits -SelectEmuBySN and `si SWD|JTAG` in flash and the GDB server (REQ-JLINK-005); flash verdict checks captured J-Link output for failure markers, not the exit code alone (REQ-JLINK-007)
+- west_env/config.py: jlink.serial and jlink.interface parsed and validated (REQ-JLINK-005)
+- west_commands/env.py: `west env flash` extracts --device/-device and --serial (space or = form) from the passthrough instead of forwarding them blindly; config serial/interface wired into flash and debug
+- container/Dockerfile + container/skills/beningo/: the five Beningo Zephyr skills plus the index vendored and copied to /opt/zephyr-skills/beningo with WEST_ENV_SKILLS_DIR exported (REQ-CONTAINER-004)
+- docs: REQUIREMENTS.md (REQ-JLINK-005/006/007, REQ-CONTAINER-004 added), docs/flashing.md (serial/interface, script-file, output verdict), container/README.md (skills as an image responsibility)
+
+Files changed: west_env/flash.py, west_env/config.py, west_commands/env.py, tests/test_new_modules.py, tests/test_config.py, container/Dockerfile, container/README.md, container/skills/beningo/*, docs/REQUIREMENTS.md, docs/flashing.md, LEDGER.md
+
+Checks run: pytest tests/ — 155 passed, 14 skipped (2 west e2e tests deselected: they fail identically on pristine upstream main in this environment, verified by stash comparison); ruff check — 0 violations
+
+Results: PASS for the unit suite. The image build with the new skills layer, and the Zephyr SDK toolchain update, land in the follow-up entry once the target workspace's Zephyr version is read from the bench machine.
+
+Open TODOs:
+- [ ] Zephyr SDK toolchain update in container/Dockerfile (version pinned to the consuming workspace's Zephyr SDK_VERSION)
+- [ ] TEST-JLINK-001/002 on real hardware (iSMART control board, probe serial 69656048, JTAG)
+
+Risks: FlashManager output markers are substring-based; a future J-Link version rewording its errors could false-negative (flash would report success on a failed write). The bench flow keeps its own identity read-back gates, which catch that case.
+
 ## 2026-05-13 — Session end
 
 Objective: Complete specsmith migration, cross-platform realignment, Slices 2–12 implementation, gap analysis, and repo cleanup.
