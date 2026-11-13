@@ -15,10 +15,12 @@ Files changed: west_env/flash.py, west_env/config.py, west_commands/env.py, test
 
 Checks run: pytest tests/ — 155 passed, 14 skipped (2 west e2e tests deselected: they fail identically on pristine upstream main in this environment, verified by stash comparison); ruff check — 0 violations
 
-Results: PASS for the unit suite. The image build with the new skills layer, and the Zephyr SDK toolchain update, land in the follow-up entry once the target workspace's Zephyr version is read from the bench machine.
+Results: PASS for the unit suite. The image build with the new skills layer lands once a container engine reachable from the bench laptop's job context is confirmed.
+
+Follow-up, same day: the bench control workspace was read on the laptop (Zephyr 4.2.0, its SDK_VERSION pins 0.17.2), and the laptop J-Link install carries JLink.exe and JFlash.exe but no JLinkExe.exe, confirming REQ-JLINK-006 was a live defect on this machine. The Dockerfile now installs SDK 1.0.1 as the default (Zephyr 4.5's pin, from the 1.0 *_gnu bundle) and keeps SDK 0.17.4 registered alongside for 4.2/4.3 workspaces (REQ-CONTAINER-005), with Python requirements for Zephyr v4.5.0 and v4.2.0; container/build.sh and build.cmd pins moved to Zephyr 4.5.0 / SDK 1.0.1.
 
 Open TODOs:
-- [ ] Zephyr SDK toolchain update in container/Dockerfile (version pinned to the consuming workspace's Zephyr SDK_VERSION)
+- [ ] Build the image and verify: skills present at /opt/zephyr-skills/beningo, both SDKs registered, a Zephyr 4.2 workspace build (iSMART control) and a 4.5 sample build
 - [ ] TEST-JLINK-001/002 on real hardware (iSMART control board, probe serial 69656048, JTAG)
 
 Risks: FlashManager output markers are substring-based; a future J-Link version rewording its errors could false-negative (flash would report success on a failed write). The bench flow keeps its own identity read-back gates, which catch that case.

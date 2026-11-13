@@ -291,6 +291,11 @@ Retired requirements (REQ-ENGINE-*, REQ-CONTAINER-001, REQ-UTIL-002, REQ-CMD-001
 - **Status**: Implemented (fork, 2026-11-13)
 - **Description**: The build image ships Jacob Beningo's Zephyr AI skills (build-doctor, devicetree-author, kconfig-tuner, renode-runner, zephyr-bsp-scaffold, and the index) under `/opt/zephyr-skills/beningo/`, vendored from `container/skills/beningo/` at image build time, with `WEST_ENV_SKILLS_DIR=/opt/zephyr-skills` exported so agents and developers in the container share one copy. Provenance is recorded in the vendored index skill.
 
+### REQ-CONTAINER-005
+- **Component**: container/Dockerfile, container/build.sh, container/build.cmd
+- **Status**: Implemented (fork, 2026-11-13)
+- **Description**: The image carries the current Zephyr SDK 1.0.1 (the SDK Zephyr 4.5 pins in its SDK_VERSION file; installed from the SDK 1.0 *_gnu bundle, the successor of the 0.x monolithic tarball) as the default at /opt/zephyr-sdk, and keeps SDK 0.17.4 at /opt/zephyr-sdk-0.17.4 for Zephyr 4.2/4.3 workspaces, whose find_package version ranges reject the 1.0 series. Both cmake packages are registered so each workspace selects its compatible SDK, and the Python requirements of both Zephyr series (v4.5.0 and v4.2.0) are installed.
+
 ---
 
 ## Utilities (REQ-UTIL) — retained
