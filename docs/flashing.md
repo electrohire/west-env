@@ -28,7 +28,13 @@ jlink:
   mode: host        # (default) flash with host J-Link tools
   # mode: tcp-server  # start GDB server on host; GDB connects from container
   # mode: none        # disable flash/debug via west-env
+  serial: 69656048  # optional: pin one probe by serial (-SelectEmuBySN)
+  interface: SWD    # SWD (default) or JTAG
 ```
+
+On a bench with more than one probe attached, set `serial`: without it
+J-Link connects to an arbitrary probe. `interface` selects the target
+interface in the commander script (`si SWD` / `si JTAG`).
 
 ---
 
@@ -53,7 +59,16 @@ west env flash artifacts/build/zephyr/zephyr.hex
 
 # Specify J-Link device explicitly:
 west env flash artifacts/build/zephyr/zephyr.hex -- --device nRF52840_xxAA
+
+# Or pin the probe for one run (overrides jlink.serial):
+west env flash artifacts/build/zephyr/zephyr.hex -- --serial 69656048
 ```
+
+The commander script is written to a temporary file and passed with
+`-CommanderScript` (no `/dev/stdin`, which does not exist on Windows).
+The flash verdict reads the captured J-Link output: J-Link exits 0 for
+many script failures, so known failure markers in the output (for
+example "Cannot connect to target") fail the flash even on exit code 0.
 
 `west env flash` automatically calls `west env sync --back` if
 `workspace_mode` is `sync` or `copy`, so you do not need to run sync separately.

@@ -104,6 +104,8 @@ class ConfigTests(unittest.TestCase):
         from west_env.config import EnvConfig
 
         cfg = EnvConfig({"env": {"type": "container", "container": {"engine": "docker"}}})
+        self.assertIsNone(cfg.jlink_serial)
+        self.assertEqual(cfg.jlink_interface, "SWD")
         self.assertTrue(cfg.wants_container)
 
     def test_wants_container_legacy_native(self):
@@ -140,6 +142,20 @@ class ConfigTests(unittest.TestCase):
 
         cfg = EnvConfig({})
         self.assertFalse(cfg.wants_container)
+
+    def test_jlink_serial_and_interface(self):
+        """REQ-JLINK-005: jlink.serial / jlink.interface parse from west-env.yml."""
+        from west_env.config import EnvConfig
+
+        cfg = EnvConfig({"jlink": {"mode": "host", "serial": 69656048, "interface": "jtag"}})
+        self.assertEqual(cfg.jlink_serial, "69656048")
+        self.assertEqual(cfg.jlink_interface, "JTAG")
+
+    def test_jlink_bad_interface_rejected(self):
+        from west_env.config import EnvConfig
+
+        with self.assertRaises(ValueError):
+            EnvConfig({"jlink": {"interface": "SPI"}})
 
 
 if __name__ == "__main__":

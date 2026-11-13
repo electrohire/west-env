@@ -88,6 +88,17 @@ The image must have `west` installed system-wide and available on `PATH`.
 The installed version must meet or exceed the minimum version required by the
 target Zephyr release.
 
+### 5. Zephyr AI skills
+
+The image ships Jacob Beningo's Zephyr AI skills (build-doctor,
+devicetree-author, kconfig-tuner, renode-runner, zephyr-bsp-scaffold,
+and the index) under `/opt/zephyr-skills/beningo/`, so agents and
+developers working in the container share one copy. The skills are
+vendored in this repository under `container/skills/beningo/` and
+copied at image build time; `WEST_ENV_SKILLS_DIR=/opt/zephyr-skills`
+points at them. Provenance is recorded in the vendored index skill
+(`beningo-zephyr-skills/SKILL.md`).
+
 ## What the container must not do
 
 The container image must not:

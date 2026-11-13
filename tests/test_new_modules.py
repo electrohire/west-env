@@ -425,6 +425,78 @@ class TestFlashManagerErrors(unittest.TestCase):
                 fm.start_gdb_server("nRF52840_xxAA")
 
 
+class TestFlashPassthrough(unittest.TestCase):
+    """REQ-JLINK-005/006/007: serial + interface selection, commander script
+    via a real file (never /dev/stdin), and output-verified flash verdicts."""
+
+    def _run_flash(self, fm, stdout="O.K.\n", rc=0, device="auto"):
+        import subprocess as _sp
+
+        captured = {}
+
+        def fake_run(cmd, capture_output=False, text=False):
+            captured["cmd"] = list(cmd)
+            idx = cmd.index("-CommanderScript")
+            script_path = cmd[idx + 1]
+            captured["script_path"] = script_path
+            with open(script_path) as fh:
+                captured["script"] = fh.read()
+            return _sp.CompletedProcess(cmd, rc, stdout=stdout, stderr="")
+
+        with tempfile.NamedTemporaryFile(suffix=".hex", delete=False) as af:
+            af.write(b":00000001FF\n")
+            artifact = Path(af.name)
+        try:
+            with patch("west_env.flash.find_jlink_exe", return_value=Path("/usr/bin/JLinkExe")):
+                with patch("west_env.flash.subprocess.run", side_effect=fake_run):
+                    fm.flash(artifact, device=device)
+        finally:
+            artifact.unlink(missing_ok=True)
+        return captured
+
+    def test_script_file_serial_and_interface(self):
+        fm = FlashManager(serial="69656048", interface="JTAG")
+        captured = self._run_flash(fm, device="MKV58F1M0xxx24")
+        cmd = captured["cmd"]
+        self.assertIn("-SelectEmuBySN", cmd)
+        self.assertEqual(cmd[cmd.index("-SelectEmuBySN") + 1], "69656048")
+        self.assertNotEqual(captured["script_path"], "/dev/stdin")
+        self.assertIn("device MKV58F1M0xxx24", captured["script"])
+        self.assertIn("si JTAG", captured["script"])
+        # temp script cleaned up after the run
+        self.assertFalse(Path(captured["script_path"]).exists())
+
+    def test_defaults_no_serial_swd(self):
+        fm = FlashManager()
+        captured = self._run_flash(fm)
+        self.assertNotIn("-SelectEmuBySN", captured["cmd"])
+        self.assertIn("si SWD", captured["script"])
+
+    def test_output_error_marker_fails_despite_zero_exit(self):
+        fm = FlashManager()
+        with self.assertRaises(RuntimeError):
+            self._run_flash(fm, stdout="Connecting to target... Cannot connect to target.\n")
+
+    def test_bad_interface_rejected(self):
+        with self.assertRaises(ValueError):
+            FlashManager(interface="SPI")
+
+
+class TestFindJlinkWindowsNames(unittest.TestCase):
+    def test_probes_jlink_exe_on_windows(self):
+        def fake_which(name):
+            if name == "JLink.exe":
+                return r"C:\Program Files\SEGGER\JLink\JLink.exe"
+            return None
+
+        with patch("sys.platform", "win32"):
+            with patch("west_env.flash.which", side_effect=fake_which):
+                result = find_jlink_exe()
+        self.assertIsNotNone(result)
+        # Path.name does not split on backslashes under POSIX; compare suffix.
+        self.assertTrue(str(result).endswith("JLink.exe"))
+
+
 # ===========================================================================
 # Benchmark output schema test
 # ===========================================================================

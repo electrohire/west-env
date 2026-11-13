@@ -94,6 +94,9 @@ class EnvConfig:
         # J-Link sub-section
         _jlink = data.get("jlink", {})
         self.jlink_mode = _jlink.get("mode", "host")
+        _serial = _jlink.get("serial")
+        self.jlink_serial = str(_serial) if _serial else None
+        self.jlink_interface = str(_jlink.get("interface", "SWD")).upper()
 
         # ------------------------------------------------------------------
         # Validation
@@ -112,6 +115,9 @@ class EnvConfig:
 
         if self.jlink_mode not in {"host", "tcp-server", "none"}:
             raise ValueError(f"unsupported jlink.mode: {self.jlink_mode}")
+
+        if self.jlink_interface not in {"SWD", "JTAG"}:
+            raise ValueError(f"unsupported jlink.interface: {self.jlink_interface}")
 
     @property
     def wants_container(self) -> bool:

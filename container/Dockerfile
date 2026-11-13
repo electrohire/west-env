@@ -73,6 +73,18 @@ RUN git clone --depth 1 --branch ${ZEPHYR_VERSION} \
     rm -rf /tmp/zephyr
 
 # ------------------------------------------------------------
+# Beningo Zephyr AI skills
+# ------------------------------------------------------------
+# Jacob Beningo's Zephyr AI skills (build-doctor, devicetree-author,
+# kconfig-tuner, renode-runner, zephyr-bsp-scaffold, plus the index)
+# ship inside the image so agents and developers working in the
+# container share one copy. Vendored under container/skills/beningo/;
+# provenance is recorded in the index skill
+# (beningo-zephyr-skills/SKILL.md).
+COPY skills/beningo /opt/zephyr-skills/beningo
+ENV WEST_ENV_SKILLS_DIR=/opt/zephyr-skills
+
+# ------------------------------------------------------------
 # Defaults
 # ------------------------------------------------------------
 WORKDIR /work

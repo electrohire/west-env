@@ -166,6 +166,21 @@ Retired requirements (REQ-ENGINE-*, REQ-CONTAINER-001, REQ-UTIL-002, REQ-CMD-001
 - **Status**: Planned (Slice 10)
 - **Description**: An optional TCP J-Link/GDB server mode is supported (`jlink.mode: tcp-server`) for container-side debugging via a J-Link GDB server running on the Windows host.
 
+### REQ-JLINK-005
+- **Component**: west_env.flash, west_env.config, west_commands.env
+- **Status**: Implemented (fork, 2026-11-13)
+- **Description**: Flash and debug target a specific probe and interface: `jlink.serial` in west-env.yml (or `--serial` on `west env flash`) is passed to J-Link as `-SelectEmuBySN`, and `jlink.interface` (`SWD` default, or `JTAG`) selects the target interface in the commander script and the GDB server. `west env flash` also accepts `--device`/`-device` in space or `=` form. Multi-probe benches require this: without a serial, J-Link picks an arbitrary probe.
+
+### REQ-JLINK-006
+- **Component**: west_env.flash
+- **Status**: Implemented (fork, 2026-11-13)
+- **Description**: On Windows the commander script is written to a real temporary file passed via `-CommanderScript` (the previous `/dev/stdin` path does not exist on Windows, so host flashing there could never run), and J-Link discovery probes both `JLinkExe.exe` and `JLink.exe` in PATH and the standard install directories, as docs/flashing.md already claimed.
+
+### REQ-JLINK-007
+- **Component**: west_env.flash
+- **Status**: Implemented (fork, 2026-11-13)
+- **Description**: A flash verdict is computed from the captured J-Link output, not the process exit code alone: J-Link exits 0 for many commander-script failures, so known failure markers in the output (for example "Cannot connect to target") raise an error even when the exit code is 0.
+
 ---
 
 ## VSCode Integration (REQ-VSCODE)
@@ -270,6 +285,11 @@ Retired requirements (REQ-ENGINE-*, REQ-CONTAINER-001, REQ-UTIL-002, REQ-CMD-001
 - **Component**: west_env.container
 - **Status**: Implemented
 - **Description**: Before running any command, the container layer executes `git config --global safe.directory '*'` inside the container so that Zephyr west extensions load under Git >= 2.35.
+
+### REQ-CONTAINER-004
+- **Component**: container/Dockerfile
+- **Status**: Implemented (fork, 2026-11-13)
+- **Description**: The build image ships Jacob Beningo's Zephyr AI skills (build-doctor, devicetree-author, kconfig-tuner, renode-runner, zephyr-bsp-scaffold, and the index) under `/opt/zephyr-skills/beningo/`, vendored from `container/skills/beningo/` at image build time, with `WEST_ENV_SKILLS_DIR=/opt/zephyr-skills` exported so agents and developers in the container share one copy. Provenance is recorded in the vendored index skill.
 
 ---
 
