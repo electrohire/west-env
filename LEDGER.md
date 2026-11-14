@@ -1,5 +1,26 @@
 # Change Ledger
 
+## 2026-11-14 — Project moved to ElectroHire; images published from CI; per-version skills overlays
+
+Objective: Owner order (iSMART chat, 2026-11-14): resume the west-env work and finish it, put the dockers on GitHub, move everything to ElectroHire (BitConcepts is being retired and ElectroHire is the new home), update all docs, and make sure the Zephyr skills are in every container, adjusted per version where versions differ.
+
+What was done:
+- Home move (REQ-CONTAINER-008, new): every functional reference retargeted from BitConcepts to ElectroHire — image registry ghcr.io/electrohire/zephyr-build-env (build-matrix.sh, build.sh, build.cmd, README.md, container/README.md, example workspace, container/.env.example.posix), repository URLs (quickstarts, example west.yml, module.yml, CHANGELOG links), maintainer email to tpierson@electrohire.com. A repo-wide grep for the former name across functional files is pinned by TEST-CONTAINER-007. The repository itself is created fresh under the electrohire org and this branch lands there by pull request, so the new home does not sit in the former owner's fork network.
+- Publishing (REQ-CONTAINER-008): new .github/workflows/container-images.yml, manual dispatch for one Zephyr version or all, one matrix job per version, GITHUB_TOKEN with packages: write. Each job frees disk space, builds from container/Dockerfile, pushes, and then verifies its own published image (skills listing, version overlay for its release, sdk_version equal to the pin, WEST_ENV_* env values, west --version) and prints IMAGE_VERIFY_OK; that verify step is the job's payload verdict.
+- Skills per version (REQ-CONTAINER-004 amended): the five Beningo skills audited — they are version-agnostic across Zephyr 4.x except for version facts. New container/skills/version-overlays/<zephyr>.md for each supported release (4.0.0 through 4.5.0) carries those facts (SDK pin read from the release's SDK_VERSION file, SDK series and install form, GNU-only toolchain note for the 1.x images, requirements source, HWMv2 board model). The Dockerfile copies all overlays into every image and selects the one matching ZEPHYR_VERSION to /opt/zephyr-skills/version-overlay.md at build time; images export WEST_ENV_ZEPHYR_VERSION / WEST_ENV_ZEPHYR_SDK_VERSION. The vendored index skill gained a section pointing agents at the overlay.
+- Docs: docs/REQUIREMENTS.md (REQ-CONTAINER-008 added, REQ-CONTAINER-004 amended, REQ-CONTAINER-007 registry path retargeted), docs/TESTS.md (TEST-CONTAINER-006/007), container/README.md (overlay contract + publishing section), README.md (home note), CHANGELOG.md (Unreleased entry).
+
+Files changed: container/Dockerfile, container/build-matrix.sh, container/build.sh, container/build.cmd, container/README.md, container/.env.example.posix, container/skills/beningo/beningo-zephyr-skills/SKILL.md, container/skills/version-overlays/* (new), .github/workflows/container-images.yml (new), tests/test_container_images.py (new), README.md, CHANGELOG.md, MAINTAINERS.yml, module.yml, docs/REQUIREMENTS.md, docs/TESTS.md, docs/quickstart-linux.md, docs/quickstart-windows.md, example/workspace/west-env.yml, example/workspace/west.yml, LEDGER.md
+
+Checks run: pytest tests/ (west e2e deselected as before) — 165 passed, 13 skipped (baseline 160 passed + 5 new container-image tests); ruff check — clean; ruff format — the new test file formatted, 2 pre-existing unformatted files on the base branch left untouched; build-matrix.sh --list shows all six tags under ghcr.io/electrohire/zephyr-build-env; the container-images workflow parses as valid YAML.
+
+Open TODOs:
+- [ ] Land this branch in electrohire/west-env by PR and merge on green CI
+- [ ] Dispatch container-images for 4.2.0, verify IMAGE_VERIFY_OK, then dispatch the remaining versions
+- [ ] Switch the iSMART control workspace to the ElectroHire 4.2.0 image and electrohire/west-env manifest entry, rebuild, flash, bench regression
+
+---
+
 ## 2026-11-13 — Fork: J-Link passthrough fixes + Beningo Zephyr skills in the image
 
 Objective: Make host-side J-Link flashing actually work end to end on Windows (owner order, iSMART bench), and ship Jacob Beningo's Zephyr AI skills inside the build container.

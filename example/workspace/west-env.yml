@@ -4,4 +4,4 @@ env:
   type: container
   container:
     engine: auto
-    image: ghcr.io/bitconcepts/zephyr-build-env:latest
+    image: ghcr.io/electrohire/zephyr-build-env:latest

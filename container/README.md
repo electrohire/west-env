@@ -99,6 +99,8 @@ copied at image build time; `WEST_ENV_SKILLS_DIR=/opt/zephyr-skills`
 points at them. Provenance is recorded in the vendored index skill
 (`beningo-zephyr-skills/SKILL.md`).
 
+The skills are version-agnostic across Zephyr 4.x except for a small set of version facts (each release's SDK pin and series, the toolchain form, the requirements source). Every image therefore also ships a per-version overlay: all overlays live in the image under `/opt/zephyr-skills/version-overlays/`, and the overlay for the image's exact Zephyr version is copied at build time to `/opt/zephyr-skills/version-overlay.md`, which agents read before the skills. The image exports `WEST_ENV_ZEPHYR_VERSION` and `WEST_ENV_ZEPHYR_SDK_VERSION` so the active version is discoverable from inside the container. Overlay sources live in this repository under `container/skills/version-overlays/`.
+
 ## What the container must not do
 
 The container image must not:
@@ -204,7 +206,7 @@ env:
   type: container
   container:
     engine: auto
-    image: ghcr.io/bitconcepts/zephyr-build-env:latest
+    image: ghcr.io/electrohire/zephyr-build-env:latest
 ```
 
 Behavior:
@@ -238,3 +240,21 @@ This contract enforces:
 
 The container provides tools and dependencies only.
 The workspace provides source and state only.
+
+## Publishing the images
+
+The images are published to the project's ElectroHire home on GHCR,
+`ghcr.io/electrohire/zephyr-build-env`, by the `container-images`
+GitHub Actions workflow in this repository (manual dispatch, one job
+per supported Zephyr version, or all). Each job builds its image from
+this directory's Dockerfile, pushes it, and then verifies the
+published image (skills present, version overlay selected for its
+Zephyr release, SDK version file equal to the release's pin, `west`
+runnable) before it counts as published. The newest supported version
+also carries the `latest` tag.
+
+Local builds tag the same registry path: `build-matrix.sh` builds the
+whole supported set or one named version, `build.sh` / `build.cmd`
+build the pinned default version, and `push.sh` / `push.cmd` publish
+locally built tags with a packages-scoped token (see
+`.env.example.posix`).

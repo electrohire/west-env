@@ -106,6 +106,18 @@ RUN git clone --depth 1 --branch ${ZEPHYR_VERSION} \
 COPY skills/beningo /opt/zephyr-skills/beningo
 ENV WEST_ENV_SKILLS_DIR=/opt/zephyr-skills
 
+# Per-version skills overlay: the five skills are version-agnostic
+# across Zephyr 4.x except for the facts in the overlay for this
+# image's exact Zephyr release (its SDK pin and series, the toolchain
+# form, the requirements source). Every overlay ships in the image;
+# the one matching ZEPHYR_VERSION is selected at build time and
+# copied to version-overlay.md, which agents read before the skills.
+COPY skills/version-overlays /opt/zephyr-skills/version-overlays
+RUN cp "/opt/zephyr-skills/version-overlays/$(echo "${ZEPHYR_VERSION}" | sed 's/^v//').md" \
+       /opt/zephyr-skills/version-overlay.md
+ENV WEST_ENV_ZEPHYR_VERSION=${ZEPHYR_VERSION}
+ENV WEST_ENV_ZEPHYR_SDK_VERSION=${ZEPHYR_SDK_VERSION}
+
 # ------------------------------------------------------------
 # Defaults
 # ------------------------------------------------------------

@@ -67,7 +67,7 @@ west env flash build/zephyr/zephyr.hex
 env:
   backend: auto           # auto | podman-machine-hyperv | docker-desktop | podman-native | ...
   workspace_mode: sync    # sync | copy | tmpfs | bind
-  image: ghcr.io/bitconcepts/zephyr-build-env:latest
+  image: ghcr.io/electrohire/zephyr-build-env:latest
 
 cache:
   ccache: true
@@ -86,7 +86,7 @@ env:
   type: container
   container:
     engine: auto           # auto | docker | podman
-    image: ghcr.io/bitconcepts/zephyr-build-env:latest
+    image: ghcr.io/electrohire/zephyr-build-env:latest
 ```
 
 ## Commands
@@ -139,6 +139,7 @@ Unit tests run on Windows, Linux, and macOS × Python 3.10/3.11/3.12.
 ## Project status
 
 Experimental — designed for local development, CI, and upstream Zephyr discussion.
+Home: the ElectroHire GitHub organisation (electrohire/west-env); build images are published at ghcr.io/electrohire/zephyr-build-env. The project moved here from BitConcepts in November 2026.
 Slices 2–11 implemented; Slice 12 (docs/troubleshooting) in progress.
 
 ## License

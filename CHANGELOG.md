@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Project home moved from BitConcepts to ElectroHire (owner order, November 2026): the repository is now electrohire/west-env and the build images publish to ghcr.io/electrohire/zephyr-build-env. All build scripts, docs, and examples were retargeted; no functional file references the former home.
+- Container images are published by a new GitHub Actions workflow (.github/workflows/container-images.yml, manual dispatch) that builds each supported Zephyr version and verifies its own published image before counting it published.
+- The Beningo Zephyr skills in every per-version image gained a per-version overlay (container/skills/version-overlays/), selected at image build time to /opt/zephyr-skills/version-overlay.md, carrying the version facts the skills are not agnostic about (SDK pin and series, toolchain form, requirements source). Images now export WEST_ENV_ZEPHYR_VERSION and WEST_ENV_ZEPHYR_SDK_VERSION.
+
 ## [0.1.0] - 2026-05-13
 
 Initial release of `west-env` — a cross-platform Zephyr RTOS developer
@@ -143,5 +148,5 @@ builds.
   images or volume mounts
 - `pip-audit` runs on every push; Dependabot monitors PyPI and Actions weekly
 
-[Unreleased]: https://github.com/BitConcepts/west-env/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/BitConcepts/west-env/releases/tag/v0.1.0
+[Unreleased]: https://github.com/electrohire/west-env/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/electrohire/west-env/releases/tag/v0.1.0

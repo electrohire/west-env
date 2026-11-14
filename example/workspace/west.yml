@@ -19,6 +19,6 @@ manifest:
 
     - name: west-env
       path: modules/west-env
-      url: https://github.com/bitconcepts/west-env
+      url: https://github.com/electrohire/west-env
       revision: main
       west-commands: west-commands.yml

@@ -6,7 +6,7 @@ REM =====================================================
 REM Build configuration
 REM =====================================================
 set IMAGE_REGISTRY=ghcr.io
-set IMAGE_NAMESPACE=bitconcepts
+set IMAGE_NAMESPACE=electrohire
 set IMAGE_NAME=zephyr-build-env
 
 set ZEPHYR_VERSION=4.5.0

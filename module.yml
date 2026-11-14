@@ -13,4 +13,4 @@ description: >
   Supports native and container execution, workspace sync, ccache,
   Git credential forwarding, J-Link host flashing, and VSCode integration.
 security:
-  url: https://github.com/BitConcepts/west-env/security/advisories
+  url: https://github.com/electrohire/west-env/security/advisories

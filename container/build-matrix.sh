@@ -8,7 +8,7 @@
 # release's Python requirements. A workspace selects its image in
 # west-env.yml (env.image), so the version grain is the image tag:
 #
-#   ghcr.io/bitconcepts/zephyr-build-env:<zephyr>-sdk<sdk>-ubuntu22.04
+#   ghcr.io/electrohire/zephyr-build-env:<zephyr>-sdk<sdk>-ubuntu22.04
 #
 # Usage:
 #   ./build-matrix.sh              build every supported version
@@ -21,7 +21,7 @@ set -eu
 
 cd "$(dirname "$0")"
 
-REGISTRY=ghcr.io/bitconcepts/zephyr-build-env
+REGISTRY=ghcr.io/electrohire/zephyr-build-env
 UBUNTU_VERSION=22.04
 
 # Zephyr version -> SDK version (from each release's SDK_VERSION file)

@@ -24,7 +24,7 @@ projects only):
 
 ```yaml
     - name: west-env
-      url: https://github.com/BitConcepts/west-env
+      url: https://github.com/electrohire/west-env
       revision: main
       path: modules/west-env
       west-commands: west-commands.yml

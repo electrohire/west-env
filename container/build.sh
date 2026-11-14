@@ -6,7 +6,7 @@ set -eu
 # Build configuration
 # =====================================================
 IMAGE_REGISTRY="ghcr.io"
-IMAGE_NAMESPACE="bitconcepts"
+IMAGE_NAMESPACE="electrohire"
 IMAGE_NAME="zephyr-build-env"
 
 ZEPHYR_VERSION="4.5.0"
