@@ -241,6 +241,17 @@ This contract enforces:
 The container provides tools and dependencies only.
 The workspace provides source and state only.
 
+## Full environment test
+
+Every published image carries its own full test at
+`/opt/west-env/full-env-test.sh`. With a west workspace of the
+matching Zephyr release mounted at `/work`, it builds
+`samples/bluetooth/peripheral` for `nrf52840dk/nrf52840` as a
+debug sysbuild and a release sysbuild, both with MCUboot, and
+requires the MCUboot image and the signed application binary
+from each. The `container-full-test` GitHub Actions workflow
+runs it per version against the published images.
+
 ## Publishing the images
 
 The images are published to the project's ElectroHire home on GHCR,

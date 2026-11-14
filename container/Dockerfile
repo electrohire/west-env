@@ -1,6 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
-FROM ubuntu:22.04
+# The base image is part of the per-version contract: each Zephyr
+# release's getting-started doc sets minimum CMake / Python
+# versions, and the base is the oldest Ubuntu whose apt packages
+# meet them (see build-matrix.sh for the mapping). 4.0-4.3 need
+# CMake >= 3.20.5 and Python >= 3.10 (Ubuntu 22.04); 4.4 needs
+# Python >= 3.12 and 4.5 needs CMake >= 3.28 and Python >= 3.12
+# (Ubuntu 24.04).
+ARG BASE_IMAGE=ubuntu:24.04
+FROM ${BASE_IMAGE}
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -37,6 +45,11 @@ RUN apt-get update && \
 # ------------------------------------------------------------
 # Python tooling (system Python, no venv)
 # ------------------------------------------------------------
+# Ubuntu 24.04's Python is externally managed (PEP 668); inside a
+# container, system-wide pip installs are the image contract, so
+# allow them explicitly. Older pip versions ignore this variable.
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
+
 RUN python3 -m pip install --no-cache-dir --upgrade pip && \
     python3 -m pip install --no-cache-dir west
 
@@ -117,6 +130,18 @@ RUN cp "/opt/zephyr-skills/version-overlays/$(echo "${ZEPHYR_VERSION}" | sed 's/
        /opt/zephyr-skills/version-overlay.md
 ENV WEST_ENV_ZEPHYR_VERSION=${ZEPHYR_VERSION}
 ENV WEST_ENV_ZEPHYR_SDK_VERSION=${ZEPHYR_SDK_VERSION}
+
+# ------------------------------------------------------------
+# Full environment test
+# ------------------------------------------------------------
+# The image carries its own full test: with a matching west
+# workspace mounted at /work, /opt/west-env/full-env-test.sh builds
+# samples/bluetooth/peripheral for nrf52840dk/nrf52840 as debug and
+# release sysbuilds with MCUboot and requires the MCUboot image and
+# the signed application binary from each. The
+# container-full-test.yml workflow runs it per published version.
+COPY tests/full-env-test.sh /opt/west-env/full-env-test.sh
+RUN chmod +x /opt/west-env/full-env-test.sh
 
 # ------------------------------------------------------------
 # Defaults

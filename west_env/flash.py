@@ -159,9 +159,7 @@ class FlashManager:
         # so host flashing on Windows could never run.
         script_path = None
         try:
-            with tempfile.NamedTemporaryFile(
-                "w", suffix=".jlink", prefix="west-env-flash-", delete=False
-            ) as fh:
+            with tempfile.NamedTemporaryFile("w", suffix=".jlink", prefix="west-env-flash-", delete=False) as fh:
                 fh.write(script)
                 script_path = fh.name
 

@@ -21,10 +21,28 @@ if str(REPO_ROOT) not in sys.path:
 CONTAINER_DIR = REPO_ROOT / "container"
 
 
-def _matrix_pairs():
-    """Parse the Zephyr -> SDK matrix out of build-matrix.sh."""
+def _matrix_rows():
+    """Parse the Zephyr -> (SDK, Ubuntu) matrix out of build-matrix.sh."""
     text = (CONTAINER_DIR / "build-matrix.sh").read_text(encoding="utf-8")
-    return re.findall(r"^(\d+\.\d+\.\d+) (\d+\.\d+\.\d+)$", text, re.M)
+    found = re.findall(r"^(\d+\.\d+\.\d+) (\d+\.\d+\.\d+) (\d+\.\d+)$", text, re.M)
+    return {zephyr: (sdk, ubuntu) for zephyr, sdk, ubuntu in found}
+
+
+def _matrix_pairs():
+    return {(z, sdk) for z, (sdk, _u) in _matrix_rows().items()}
+
+
+# Each release's getting-started minimums (CMake, Python), verified
+# from that release's own doc/develop/getting_started/index.rst, and
+# the Ubuntu base whose apt packages meet them.
+VERSION_MINIMUMS = {
+    "4.0.0": ("3.20.5", "3.10", "22.04"),
+    "4.1.0": ("3.20.5", "3.10", "22.04"),
+    "4.2.0": ("3.20.5", "3.10", "22.04"),
+    "4.3.0": ("3.20.5", "3.10", "22.04"),
+    "4.4.0": ("3.20.5", "3.12", "24.04"),
+    "4.5.0": ("3.28.0", "3.12", "24.04"),
+}
 
 
 class ContainerImageTests(unittest.TestCase):
@@ -86,10 +104,56 @@ class ContainerImageTests(unittest.TestCase):
             for needle in forbidden:
                 self.assertNotIn(needle, body, f"{rel} still references the former home: {needle}")
 
+    def test_base_image_is_version_appropriate(self):
+        # REQ-CONTAINER-007 as amended: the base is the oldest Ubuntu
+        # whose apt packages meet the release's getting-started
+        # minimums; 4.4 needs Python 3.12 and 4.5 needs CMake 3.28, so
+        # both ride Ubuntu 24.04 while 4.0-4.3 stay on 22.04.
+        rows = _matrix_rows()
+        self.assertEqual(set(rows), set(VERSION_MINIMUMS))
+        for zephyr, (_cmake, _python, ubuntu) in VERSION_MINIMUMS.items():
+            self.assertEqual(rows[zephyr][1], ubuntu, f"{zephyr} base image")
+        dockerfile = (CONTAINER_DIR / "Dockerfile").read_text(encoding="utf-8")
+        self.assertIn("ARG BASE_IMAGE=", dockerfile)
+        self.assertIn("FROM ${BASE_IMAGE}", dockerfile)
+        self.assertIn("PIP_BREAK_SYSTEM_PACKAGES=1", dockerfile)
+
+    def test_overlay_states_recommended_environment_and_copyright(self):
+        overlays = CONTAINER_DIR / "skills" / "version-overlays"
+        for zephyr, (cmake, python, ubuntu) in VERSION_MINIMUMS.items():
+            body = (overlays / f"{zephyr}.md").read_text(encoding="utf-8")
+            self.assertIn("Recommended environment", body, zephyr)
+            self.assertIn(f"CMake >= {cmake}", body, zephyr)
+            self.assertIn(f"Python >= {python}", body, zephyr)
+            self.assertIn(f"ubuntu:{ubuntu}", body, zephyr)
+            self.assertIn("Copyright and provenance", body, zephyr)
+            self.assertIn("SPDX-License-Identifier: Apache-2.0", body, zephyr)
+
+    def test_full_env_test_script_and_workflow(self):
+        # REQ-CONTAINER-009: every version gets a full test — debug
+        # and release sysbuilds of a stress sample with MCUboot.
+        script = CONTAINER_DIR / "tests" / "full-env-test.sh"
+        self.assertTrue(script.is_file())
+        body = script.read_text(encoding="utf-8")
+        self.assertIn("samples/bluetooth/peripheral", body)
+        self.assertIn("SB_CONFIG_BOOTLOADER_MCUBOOT=y", body)
+        self.assertIn("CONFIG_DEBUG_OPTIMIZATIONS=y", body)
+        self.assertIn("CONFIG_SPEED_OPTIMIZATIONS=y", body)
+        self.assertIn("zephyr.signed.bin", body)
+        self.assertIn("FULLTEST_ALL_OK", body)
+        self.assertIn("SPDX-License-Identifier: Apache-2.0", body)
+        dockerfile = (CONTAINER_DIR / "Dockerfile").read_text(encoding="utf-8")
+        self.assertIn("/opt/west-env/full-env-test.sh", dockerfile)
+        workflow = (REPO_ROOT / ".github" / "workflows" / "container-full-test.yml").read_text(encoding="utf-8")
+        self.assertIn("zephyrproject-rtos/zephyr", workflow)
+        self.assertIn("full-env-test.sh", workflow)
+        self.assertIn("west update", workflow)
+
     def test_publish_workflow_targets_electrohire_ghcr(self):
         workflow = (REPO_ROOT / ".github" / "workflows" / "container-images.yml").read_text(encoding="utf-8")
         self.assertIn("ghcr.io/electrohire/zephyr-build-env", workflow)
         self.assertIn("packages: write", workflow)
+        self.assertIn("BASE_IMAGE=ubuntu:", workflow)
         self.assertIn("ZEPHYR_SDK_VERSION", workflow)
         self.assertIn("version-overlay.md", workflow)
 

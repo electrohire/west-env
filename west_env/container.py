@@ -119,8 +119,7 @@ def run_container(cfg, command, interactive=False):
         )
         if res.returncode != 0:
             raise RuntimeError(
-                f"workspace volume {volume} does not exist "
-                f"(workspace_mode={mode}); run 'west env sync' first"
+                f"workspace volume {volume} does not exist (workspace_mode={mode}); run 'west env sync' first"
             )
 
     engine.run(args)

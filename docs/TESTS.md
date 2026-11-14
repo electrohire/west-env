@@ -51,6 +51,11 @@ Retired tests (TEST-ENGINE-*, TEST-CONTAINER-002/003, TEST-UTIL-001/002) are kep
 - Covers: REQ-CONTAINER-008
 - **Status**: Passing
 
+### TEST-CONTAINER-008
+- **File**: tests/test_container_images.py — `ContainerImageTests.test_base_image_is_version_appropriate`, `test_overlay_states_recommended_environment_and_copyright`, `test_full_env_test_script_and_workflow`
+- Covers: REQ-CONTAINER-007 (base images), REQ-CONTAINER-004 (overlay environment and copyright sections), REQ-CONTAINER-009 (full environment test, source level; the test itself runs in the container-full-test workflow)
+- **Status**: Passing
+
 ## Retained: Integration Tests (CI)
 
 ### TEST-BUILD-001

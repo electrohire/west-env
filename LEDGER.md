@@ -14,9 +14,12 @@ Files changed: container/Dockerfile, container/build-matrix.sh, container/build.
 
 Checks run: pytest tests/ (west e2e deselected as before) — 165 passed, 13 skipped (baseline 160 passed + 5 new container-image tests); ruff check — clean; ruff format — the new test file formatted, 2 pre-existing unformatted files on the base branch left untouched; build-matrix.sh --list shows all six tags under ghcr.io/electrohire/zephyr-build-env; the container-images workflow parses as valid YAML.
 
+Addendum, same day (owner follow-ups): PR #1's first CI run failed its payload on lint (ruff format on west_env/container.py and west_env/flash.py, both from this branch's earlier commits) and on the native-sim job's apt step (the runner mirror 404'd on superseded glibc packages); both are fixed in this branch (format applied; the CI step now runs apt-get update first). The owner also required the Zephyr recommended environment setups and copyright instructions to be kept per version, and a full test per version. Checking the releases' own getting-started docs showed the single Ubuntu 22.04 base did NOT meet 4.4 (Python >= 3.12) or 4.5 (CMake >= 3.28, Python >= 3.12), so bases are now version-appropriate (REQ-CONTAINER-007 amended): Ubuntu 22.04 for 4.0-4.3, Ubuntu 24.04 for 4.4/4.5, the tag suffix follows the base, and each version overlay states its release's recommended environment and copyright/provenance position. The full environment test is REQ-CONTAINER-009: an in-image script builds samples/bluetooth/peripheral as debug and release sysbuilds with MCUboot, and the container-full-test workflow runs it per published version.
+
 Open TODOs:
 - [ ] Land this branch in electrohire/west-env by PR and merge on green CI
 - [ ] Dispatch container-images for 4.2.0, verify IMAGE_VERIFY_OK, then dispatch the remaining versions
+- [ ] Run the container-full-test workflow per version and verify FULLTEST_ALL_OK payloads
 - [ ] Switch the iSMART control workspace to the ElectroHire 4.2.0 image and electrohire/west-env manifest entry, rebuild, flash, bench regression
 
 ---

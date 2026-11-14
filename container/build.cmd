@@ -11,7 +11,13 @@ set IMAGE_NAME=zephyr-build-env
 
 set ZEPHYR_VERSION=4.5.0
 set ZEPHYR_SDK_VERSION=1.0.1
-set UBUNTU_VERSION=22.04
+REM The base follows the Zephyr version (see build-matrix.sh):
+REM 4.0-4.3 ride Ubuntu 22.04; 4.4/4.5 need 24.04.
+set UBUNTU_VERSION=24.04
+if "%ZEPHYR_VERSION%"=="4.0.0" set UBUNTU_VERSION=22.04
+if "%ZEPHYR_VERSION%"=="4.1.0" set UBUNTU_VERSION=22.04
+if "%ZEPHYR_VERSION%"=="4.2.0" set UBUNTU_VERSION=22.04
+if "%ZEPHYR_VERSION%"=="4.3.0" set UBUNTU_VERSION=22.04
 
 set IMAGE_TAG=%ZEPHYR_VERSION%-sdk%ZEPHYR_SDK_VERSION%-ubuntu%UBUNTU_VERSION%
 set IMAGE_FULL=%IMAGE_REGISTRY%/%IMAGE_NAMESPACE%/%IMAGE_NAME%:%IMAGE_TAG%
@@ -45,6 +51,7 @@ REM =====================================================
 REM Build image
 REM =====================================================
 docker build ^
+  --build-arg BASE_IMAGE=ubuntu:%UBUNTU_VERSION% ^
   --build-arg ZEPHYR_VERSION=v%ZEPHYR_VERSION% ^
   --build-arg ZEPHYR_SDK_VERSION=%ZEPHYR_SDK_VERSION% ^
   -t %IMAGE_FULL% ^

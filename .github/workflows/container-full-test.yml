@@ -1,0 +1,95 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Full environment test for the published per-version images.
+#
+# For each selected Zephyr version this checks out that Zephyr
+# release, builds a west workspace from it on the runner, and runs
+# the image's own /opt/west-env/full-env-test.sh inside the published
+# image with the workspace mounted at /work. The script builds
+# samples/bluetooth/peripheral for nrf52840dk/nrf52840 as debug and
+# release sysbuilds with MCUboot and requires the MCUboot image and
+# the imgtool-signed application binary from each build.
+#
+# The job's verdict is the script's own: exit 0 with a
+# FULLTEST_ALL_OK line. The workflow wrapper completing is not the
+# verdict.
+name: container-full-test
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Zephyr version to test, or all"
+        type: choice
+        options:
+          - all
+          - "4.0.0"
+          - "4.1.0"
+          - "4.2.0"
+          - "4.3.0"
+          - "4.4.0"
+          - "4.5.0"
+        default: all
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  select:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.pick.outputs.matrix }}
+    steps:
+      - id: pick
+        run: |
+          all='[{"zephyr":"4.0.0","sdk":"0.17.0","ubuntu":"22.04"},{"zephyr":"4.1.0","sdk":"0.17.0","ubuntu":"22.04"},{"zephyr":"4.2.0","sdk":"0.17.2","ubuntu":"22.04"},{"zephyr":"4.3.0","sdk":"0.17.4","ubuntu":"22.04"},{"zephyr":"4.4.0","sdk":"1.0.1","ubuntu":"24.04"},{"zephyr":"4.5.0","sdk":"1.0.1","ubuntu":"24.04"}]'
+          if [ "${{ inputs.version }}" = "all" ]; then
+            echo "matrix={\"include\":$all}" >> "$GITHUB_OUTPUT"
+          else
+            picked=$(echo "$all" | python3 -c "import json,sys; v='${{ inputs.version }}'; print(json.dumps([e for e in json.load(sys.stdin) if e['zephyr']==v]))")
+            echo "matrix={\"include\":$picked}" >> "$GITHUB_OUTPUT"
+          fi
+
+  test:
+    needs: select
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.select.outputs.matrix) }}
+    steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          sudo docker image prune --all --force || true
+          df -h /
+
+      - name: Check out Zephyr ${{ matrix.zephyr }}
+        uses: actions/checkout@v4
+        with:
+          repository: zephyrproject-rtos/zephyr
+          ref: v${{ matrix.zephyr }}
+          path: ws/zephyr
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build the west workspace
+        run: |
+          pip install west
+          cd ws
+          west init -l zephyr
+          west update
+          west zephyr-export
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Run the full environment test in the published image
+        run: |
+          image="ghcr.io/electrohire/zephyr-build-env:${{ matrix.zephyr }}-sdk${{ matrix.sdk }}-ubuntu${{ matrix.ubuntu }}"
+          echo "testing $image"
+          docker run --rm -v "$GITHUB_WORKSPACE/ws:/work" -w /work "$image" /opt/west-env/full-env-test.sh

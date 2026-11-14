@@ -45,12 +45,12 @@ jobs:
       - id: plan
         run: |
           all='[
-            {"zephyr":"4.0.0","sdk":"0.17.0"},
-            {"zephyr":"4.1.0","sdk":"0.17.0"},
-            {"zephyr":"4.2.0","sdk":"0.17.2"},
-            {"zephyr":"4.3.0","sdk":"0.17.4"},
-            {"zephyr":"4.4.0","sdk":"1.0.1"},
-            {"zephyr":"4.5.0","sdk":"1.0.1"}
+            {"zephyr":"4.0.0","sdk":"0.17.0","ubuntu":"22.04"},
+            {"zephyr":"4.1.0","sdk":"0.17.0","ubuntu":"22.04"},
+            {"zephyr":"4.2.0","sdk":"0.17.2","ubuntu":"22.04"},
+            {"zephyr":"4.3.0","sdk":"0.17.4","ubuntu":"22.04"},
+            {"zephyr":"4.4.0","sdk":"1.0.1","ubuntu":"24.04"},
+            {"zephyr":"4.5.0","sdk":"1.0.1","ubuntu":"24.04"}
           ]'
           if [ "${{ inputs.version }}" = "all" ]; then
             chosen="$all"
@@ -91,7 +91,7 @@ jobs:
         id: tags
         run: |
           base="ghcr.io/electrohire/zephyr-build-env"
-          tag="$base:${{ matrix.zephyr }}-sdk${{ matrix.sdk }}-ubuntu22.04"
+          tag="$base:${{ matrix.zephyr }}-sdk${{ matrix.sdk }}-ubuntu${{ matrix.ubuntu }}"
           if [ "${{ matrix.zephyr }}" = "4.5.0" ]; then
             tag="$tag"$'\n'"$base:latest"
           fi
@@ -109,6 +109,7 @@ jobs:
           provenance: false
           sbom: false
           build-args: |
+            BASE_IMAGE=ubuntu:${{ matrix.ubuntu }}
             ZEPHYR_VERSION=v${{ matrix.zephyr }}
             ZEPHYR_SDK_VERSION=${{ matrix.sdk }}
           tags: ${{ steps.tags.outputs.tags }}
@@ -116,7 +117,7 @@ jobs:
       - name: Verify the published image
         run: |
           set -eu
-          image="ghcr.io/electrohire/zephyr-build-env:${{ matrix.zephyr }}-sdk${{ matrix.sdk }}-ubuntu22.04"
+          image="ghcr.io/electrohire/zephyr-build-env:${{ matrix.zephyr }}-sdk${{ matrix.sdk }}-ubuntu${{ matrix.ubuntu }}"
           docker pull "$image"
           echo "== skills =="
           docker run --rm "$image" ls /opt/zephyr-skills/beningo
