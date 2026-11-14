@@ -291,6 +291,11 @@ Retired requirements (REQ-ENGINE-*, REQ-CONTAINER-001, REQ-UTIL-002, REQ-CMD-001
 - **Status**: Implemented (fork, 2026-11-13)
 - **Description**: The build image ships Jacob Beningo's Zephyr AI skills (build-doctor, devicetree-author, kconfig-tuner, renode-runner, zephyr-bsp-scaffold, and the index) under `/opt/zephyr-skills/beningo/`, vendored from `container/skills/beningo/` at image build time, with `WEST_ENV_SKILLS_DIR=/opt/zephyr-skills` exported so agents and developers in the container share one copy. Provenance is recorded in the vendored index skill.
 
+### REQ-CONTAINER-007
+- **Component**: container/Dockerfile, container/build-matrix.sh
+- **Status**: Implemented (fork, 2026-11-13)
+- **Description**: Build images are per Zephyr version. Each image carries exactly the SDK its Zephyr release pins (4.0.0/4.1.0 -> 0.17.0, 4.2.0 -> 0.17.2, 4.3.0 -> 0.17.4, 4.4.0/4.5.0 -> 1.0.1, read from each release's SDK_VERSION file) and exactly that release's Python requirements, selected by the ZEPHYR_VERSION / ZEPHYR_SDK_VERSION build args; the Dockerfile's SDK step branches on the SDK series (0.x monolithic tarball + setup.sh, 1.x *_gnu bundle). build-matrix.sh builds the supported set (4.0.0 through 4.5.0) or one named version, tagging ghcr.io/bitconcepts/zephyr-build-env:<zephyr>-sdk<sdk>-ubuntu22.04. This supersedes the dual-SDK arrangement of REQ-CONTAINER-005: one combined image forced union-installed Python requirements and carried every SDK's weight for every workspace, while a workspace is always exactly one Zephyr version and already names its image in west-env.yml.
+
 ### REQ-CONTAINER-006
 - **Component**: west_env/container.py
 - **Status**: Implemented (fork, 2026-11-13)
@@ -298,7 +303,7 @@ Retired requirements (REQ-ENGINE-*, REQ-CONTAINER-001, REQ-UTIL-002, REQ-CMD-001
 
 ### REQ-CONTAINER-005
 - **Component**: container/Dockerfile, container/build.sh, container/build.cmd
-- **Status**: Implemented (fork, 2026-11-13)
+- **Status**: Implemented (fork, 2026-11-13); the dual-SDK arrangement is superseded by REQ-CONTAINER-007 (per-version images)
 - **Description**: The image carries the current Zephyr SDK 1.0.1 (the SDK Zephyr 4.5 pins in its SDK_VERSION file; installed from the SDK 1.0 *_gnu bundle, the successor of the 0.x monolithic tarball) as the default at /opt/zephyr-sdk, and keeps SDK 0.17.4 at /opt/zephyr-sdk-0.17.4 for Zephyr 4.2/4.3 workspaces, whose find_package version ranges reject the 1.0 series. Both cmake packages are registered so each workspace selects its compatible SDK, and the Python requirements of both Zephyr series (v4.5.0 and v4.2.0) are installed.
 
 ---

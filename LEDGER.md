@@ -25,6 +25,14 @@ Open TODOs:
 
 ---
 
+# 2026-11-13 — per-Zephyr-version build images
+
+**Scope**: container/Dockerfile, container/build-matrix.sh (new), container/build.sh, container/build.cmd, docs/REQUIREMENTS.md (REQ-CONTAINER-007).
+
+Owner direction (2026-11-13): cover the supported Zephyr versions with their exact component versions, one container per Zephyr version from 4.0.0 onward. The Dockerfile is now parameterized on ZEPHYR_VERSION + ZEPHYR_SDK_VERSION and installs exactly one SDK (the SDK step branches on series: 0.x monolithic tarball + setup.sh, 1.x *_gnu bundle) and exactly that release's Python requirements. build-matrix.sh carries the supported matrix with the SDK pin read from each release's SDK_VERSION file (4.0.0/4.1.0 -> 0.17.0, 4.2.0 -> 0.17.2, 4.3.0 -> 0.17.4, 4.4.0/4.5.0 -> 1.0.1) and builds all versions or one named version. The dual-SDK image (REQ-CONTAINER-005) remains valid and in service on the bench laptop until the workspace is switched to its exact per-version image.
+
+---
+
 # 2026-11-13 — workspace_mode honored by container commands; install route corrected
 
 **Scope**: west_env/container.py, tests/test_container.py, docs (quickstart-windows, quickstart-linux, REQUIREMENTS REQ-CONTAINER-006).

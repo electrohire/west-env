@@ -44,6 +44,7 @@ echo
 # Build image
 # =====================================================
 if ! docker build \
+  --build-arg ZEPHYR_VERSION="v$ZEPHYR_VERSION" \
   --build-arg ZEPHYR_SDK_VERSION="$ZEPHYR_SDK_VERSION" \
   -t "$IMAGE_FULL" \
   .; then
