@@ -50,24 +50,24 @@ def _container_args(cfg, command, interactive=False, workspace=None, host_cwd=No
     # -------------------------------------------------
     # Prepare container invocation
     # -------------------------------------------------
-    # workspace_mode decides what is mounted at /work:
+    # workspace_mode decides what is mounted at /work; the mount spec
+    # comes from WorkspaceSync.volume_args, the single source of
+    # truth shared with `west env sync`:
     #   bind          -> the host workspace directory itself
     #   sync/copy/tmpfs -> the volume that `west env sync` populated
-    # Mounting the host directory in the sync-family modes (the old
-    # behaviour) silently ignored the configured mode and rebuilt
-    # against the host tree, which on Windows bind-mounts a C:\ path
-    # into the container: the exact failure sync mode exists to avoid.
+    # This function previously hand-rolled an unconditional bind
+    # mount, silently ignoring the configured mode and rebuilding
+    # against the host tree (on Windows a C:\ bind mount, the exact
+    # failure sync mode exists to avoid).
+    from west_env.sync import WorkspaceSync
+
     mode = getattr(cfg, "workspace_mode", "bind")
-    if mode == "bind":
-        mount_source = str(workspace)
-    else:
-        mount_source = workspace_volume_name(workspace)
+    mount_args = WorkspaceSync(workspace_mode=mode).volume_args(workspace, engine.name)
 
     args = [
         "run",
         "--rm",
-        "-v",
-        f"{mount_source}:{CONTAINER_WORKDIR}",
+        *mount_args,
         "-w",
         container_wd,
         "-e",

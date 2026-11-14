@@ -25,6 +25,21 @@ Open TODOs:
 
 ---
 
+# 2026-11-13 — sync-mode container contract completed (REQ-CONTAINER-006 extended)
+
+**Scope**: west_env/sync.py, west_env/container.py, west_commands/env.py, tests (test_sync, test_new_modules).
+
+The first bench build after the workspace_mode mount fix exposed the rest of the sync path, none of which had ever run end to end:
+
+1. The synced volume carried no `.west/` (it sat in DEFAULT_EXCLUDES), so the container-side west found no workspace topdir and `west build` failed with `unknown command "build"`. `.west` is removed from the excludes; the tool's own container workspace check expects it present. New test: .west is not excluded.
+2. Artifact sync-back only searched /work/build. Application layouts (build dir under the app, e.g. application/build/<cfg>) would have returned nothing. The find now covers any path containing a build directory.
+3. `west env sync --back` silently performed a FORWARD sync: argparse routes everything after the action into the REMAINDER passthrough, so args.back never became true. do_run now honours --back from the passthrough for the sync action. New tests route both forms through do_run with _sync stubbed.
+4. container.py now takes its mount spec from WorkspaceSync.volume_args instead of a hand-rolled equivalent, so the tmpfs variant's extra mount and any future mode change live in exactly one place.
+
+Suite: 160 passed, 13 skipped, ruff clean.
+
+---
+
 # 2026-11-13 — per-Zephyr-version build images
 
 **Scope**: container/Dockerfile, container/build-matrix.sh (new), container/build.sh, container/build.cmd, docs/REQUIREMENTS.md (REQ-CONTAINER-007).

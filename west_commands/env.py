@@ -197,7 +197,14 @@ class EnvCommand(WestCommand):
             self._doctor(cfg, use_container)
 
         elif action == "sync":
-            self._sync(cfg, args.workspace_mode or cfg.workspace_mode, back=getattr(args, "back", False))
+            # The '--back' flag is commonly given after the action
+            # ('west env sync --back', as the docs show), but argparse
+            # routes everything after the action into the REMAINDER
+            # passthrough, so args.back stays False. Honour the flag
+            # from the passthrough as well, or the command silently
+            # performs a forward sync instead of the artifact return.
+            back = getattr(args, "back", False) or "--back" in passthrough
+            self._sync(cfg, args.workspace_mode or cfg.workspace_mode, back=back)
 
         elif action == "flash":
             self._flash(cfg, passthrough)

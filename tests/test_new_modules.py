@@ -533,5 +533,43 @@ class TestBenchmarkOutputSchema(unittest.TestCase):
         self.assertIsInstance(result["elapsed_seconds"], float)
 
 
+class TestSyncBackFlagRouting(unittest.TestCase):
+    """'west env sync --back' must route to a back-sync.
+
+    Regression (bench, 2026-11-13): argparse routes everything after
+    the action into the REMAINDER passthrough, so args.back stayed
+    False and the documented 'west env sync --back' silently performed
+    a forward sync instead of returning build artifacts.
+    """
+
+    def _run_sync(self, argv):
+        import argparse
+        from types import SimpleNamespace
+
+        from west_commands.env import EnvCommand
+
+        cmd = EnvCommand.__new__(EnvCommand)
+        cmd.name = "env"
+        cmd.description = "test"
+        cmd.topdir = "/nonexistent"
+        parser = cmd.do_add_parser(argparse.ArgumentParser().add_subparsers())
+        args = parser.parse_args(argv)
+        cfg = SimpleNamespace(wants_container=False, workspace_mode="sync")
+        with (
+            patch("west_commands.env.load_config", return_value=cfg),
+            patch.object(EnvCommand, "_sync") as mock_sync,
+        ):
+            cmd.do_run(args, [])
+        return mock_sync
+
+    def test_back_flag_after_action_routes_back(self):
+        mock_sync = self._run_sync(["sync", "--back"])
+        self.assertTrue(mock_sync.call_args.kwargs["back"])
+
+    def test_plain_sync_stays_forward(self):
+        mock_sync = self._run_sync(["sync"])
+        self.assertFalse(mock_sync.call_args.kwargs["back"])
+
+
 if __name__ == "__main__":
     unittest.main()
