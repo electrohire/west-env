@@ -6,12 +6,18 @@ set -eu
 # Build configuration
 # =====================================================
 IMAGE_REGISTRY="ghcr.io"
-IMAGE_NAMESPACE="bitconcepts"
+IMAGE_NAMESPACE="electrohire"
 IMAGE_NAME="zephyr-build-env"
 
-ZEPHYR_VERSION="4.3.0"
-ZEPHYR_SDK_VERSION="0.17.4"
-UBUNTU_VERSION="22.04"
+ZEPHYR_VERSION="4.5.0"
+ZEPHYR_SDK_VERSION="1.0.1"
+# The base follows the Zephyr version (see build-matrix.sh): the
+# oldest Ubuntu whose apt packages meet that release's
+# getting-started minimums. 4.0-4.3 ride 22.04; 4.4/4.5 need 24.04.
+case "$ZEPHYR_VERSION" in
+  4.0.0|4.1.0|4.2.0|4.3.0) UBUNTU_VERSION="22.04" ;;
+  *) UBUNTU_VERSION="24.04" ;;
+esac
 
 IMAGE_TAG="${ZEPHYR_VERSION}-sdk${ZEPHYR_SDK_VERSION}-ubuntu${UBUNTU_VERSION}"
 IMAGE_FULL="${IMAGE_REGISTRY}/${IMAGE_NAMESPACE}/${IMAGE_NAME}:${IMAGE_TAG}"
@@ -44,6 +50,8 @@ echo
 # Build image
 # =====================================================
 if ! docker build \
+  --build-arg BASE_IMAGE="ubuntu:$UBUNTU_VERSION" \
+  --build-arg ZEPHYR_VERSION="v$ZEPHYR_VERSION" \
   --build-arg ZEPHYR_SDK_VERSION="$ZEPHYR_SDK_VERSION" \
   -t "$IMAGE_FULL" \
   .; then

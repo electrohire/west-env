@@ -52,6 +52,15 @@ class TestIsExcluded(unittest.TestCase):
             nested.mkdir(parents=True)
             self.assertTrue(_is_excluded(nested, root, DEFAULT_EXCLUDES))
 
+    def test_does_not_exclude_dotwest(self):
+        # .west/config must reach the container volume: without it the
+        # container-side west cannot recognise /work as a workspace.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            west_dir = root / ".west"
+            west_dir.mkdir()
+            self.assertFalse(_is_excluded(west_dir, root, DEFAULT_EXCLUDES))
+
     def test_does_not_exclude_regular_source(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

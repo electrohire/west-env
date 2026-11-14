@@ -23,12 +23,16 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-# Directories always excluded from source → container sync
+# Directories always excluded from source → container sync.
+# NOTE: .west is deliberately NOT excluded: the container-side west
+# needs .west/config to recognise /work as a workspace topdir, and
+# west-env's own container workspace check tests for its presence.
+# Excluding it left every container west command in sync mode
+# reporting "unknown command" (found on the bench, 2026-11-13).
 DEFAULT_EXCLUDES = [
     "build",
     ".cache",
     "twister-out",
-    ".west",
     "*.egg-info",
     "__pycache__",
     ".git",
@@ -154,7 +158,10 @@ class WorkspaceSync:
     def sync_from_volume(self, engine: str, volume_name: str, host_dst: Path):
         """Copy build artifacts from a named volume back to the host."""
         host_dst.mkdir(parents=True, exist_ok=True)
-        # Extract artifact files from /work/build inside the volume
+        # Extract artifact files from any build tree inside the volume.
+        # The build directory is not always /work/build: application
+        # layouts keep it under the app (e.g. application/build/<cfg>),
+        # so search every path containing a build directory.
         extract_cmd = [
             engine,
             "run",
@@ -166,7 +173,7 @@ class WorkspaceSync:
             "alpine",
             "sh",
             "-c",
-            "find /work/build -type f \\( "
+            "find /work -path '*/build/*' -type f \\( "
             + " -o ".join(f"-name '*{ext}'" for ext in ARTIFACT_EXTENSIONS)
             + " \\) -exec cp --parents {} /output/ \\; 2>/dev/null || true",
         ]

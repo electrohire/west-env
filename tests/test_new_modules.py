@@ -425,6 +425,78 @@ class TestFlashManagerErrors(unittest.TestCase):
                 fm.start_gdb_server("nRF52840_xxAA")
 
 
+class TestFlashPassthrough(unittest.TestCase):
+    """REQ-JLINK-005/006/007: serial + interface selection, commander script
+    via a real file (never /dev/stdin), and output-verified flash verdicts."""
+
+    def _run_flash(self, fm, stdout="O.K.\n", rc=0, device="auto"):
+        import subprocess as _sp
+
+        captured = {}
+
+        def fake_run(cmd, capture_output=False, text=False):
+            captured["cmd"] = list(cmd)
+            idx = cmd.index("-CommanderScript")
+            script_path = cmd[idx + 1]
+            captured["script_path"] = script_path
+            with open(script_path) as fh:
+                captured["script"] = fh.read()
+            return _sp.CompletedProcess(cmd, rc, stdout=stdout, stderr="")
+
+        with tempfile.NamedTemporaryFile(suffix=".hex", delete=False) as af:
+            af.write(b":00000001FF\n")
+            artifact = Path(af.name)
+        try:
+            with patch("west_env.flash.find_jlink_exe", return_value=Path("/usr/bin/JLinkExe")):
+                with patch("west_env.flash.subprocess.run", side_effect=fake_run):
+                    fm.flash(artifact, device=device)
+        finally:
+            artifact.unlink(missing_ok=True)
+        return captured
+
+    def test_script_file_serial_and_interface(self):
+        fm = FlashManager(serial="69656048", interface="JTAG")
+        captured = self._run_flash(fm, device="MKV58F1M0xxx24")
+        cmd = captured["cmd"]
+        self.assertIn("-SelectEmuBySN", cmd)
+        self.assertEqual(cmd[cmd.index("-SelectEmuBySN") + 1], "69656048")
+        self.assertNotEqual(captured["script_path"], "/dev/stdin")
+        self.assertIn("device MKV58F1M0xxx24", captured["script"])
+        self.assertIn("si JTAG", captured["script"])
+        # temp script cleaned up after the run
+        self.assertFalse(Path(captured["script_path"]).exists())
+
+    def test_defaults_no_serial_swd(self):
+        fm = FlashManager()
+        captured = self._run_flash(fm)
+        self.assertNotIn("-SelectEmuBySN", captured["cmd"])
+        self.assertIn("si SWD", captured["script"])
+
+    def test_output_error_marker_fails_despite_zero_exit(self):
+        fm = FlashManager()
+        with self.assertRaises(RuntimeError):
+            self._run_flash(fm, stdout="Connecting to target... Cannot connect to target.\n")
+
+    def test_bad_interface_rejected(self):
+        with self.assertRaises(ValueError):
+            FlashManager(interface="SPI")
+
+
+class TestFindJlinkWindowsNames(unittest.TestCase):
+    def test_probes_jlink_exe_on_windows(self):
+        def fake_which(name):
+            if name == "JLink.exe":
+                return r"C:\Program Files\SEGGER\JLink\JLink.exe"
+            return None
+
+        with patch("sys.platform", "win32"):
+            with patch("west_env.flash.which", side_effect=fake_which):
+                result = find_jlink_exe()
+        self.assertIsNotNone(result)
+        # Path.name does not split on backslashes under POSIX; compare suffix.
+        self.assertTrue(str(result).endswith("JLink.exe"))
+
+
 # ===========================================================================
 # Benchmark output schema test
 # ===========================================================================
@@ -459,6 +531,44 @@ class TestBenchmarkOutputSchema(unittest.TestCase):
         for field in self.REQUIRED_FIELDS:
             self.assertIn(field, result, f"Missing required field: {field}")
         self.assertIsInstance(result["elapsed_seconds"], float)
+
+
+class TestSyncBackFlagRouting(unittest.TestCase):
+    """'west env sync --back' must route to a back-sync.
+
+    Regression (bench, 2026-11-13): argparse routes everything after
+    the action into the REMAINDER passthrough, so args.back stayed
+    False and the documented 'west env sync --back' silently performed
+    a forward sync instead of returning build artifacts.
+    """
+
+    def _run_sync(self, argv):
+        import argparse
+        from types import SimpleNamespace
+
+        from west_commands.env import EnvCommand
+
+        cmd = EnvCommand.__new__(EnvCommand)
+        cmd.name = "env"
+        cmd.description = "test"
+        cmd.topdir = "/nonexistent"
+        parser = cmd.do_add_parser(argparse.ArgumentParser().add_subparsers())
+        args = parser.parse_args(argv)
+        cfg = SimpleNamespace(wants_container=False, workspace_mode="sync")
+        with (
+            patch("west_commands.env.load_config", return_value=cfg),
+            patch.object(EnvCommand, "_sync") as mock_sync,
+        ):
+            cmd.do_run(args, [])
+        return mock_sync
+
+    def test_back_flag_after_action_routes_back(self):
+        mock_sync = self._run_sync(["sync", "--back"])
+        self.assertTrue(mock_sync.call_args.kwargs["back"])
+
+    def test_plain_sync_stays_forward(self):
+        mock_sync = self._run_sync(["sync"])
+        self.assertFalse(mock_sync.call_args.kwargs["back"])
 
 
 if __name__ == "__main__":

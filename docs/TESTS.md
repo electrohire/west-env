@@ -41,6 +41,21 @@ Retired tests (TEST-ENGINE-*, TEST-CONTAINER-002/003, TEST-UTIL-001/002) are kep
 - Covers: REQ-CMD-006
 - **Status**: Passing
 
+### TEST-CONTAINER-006
+- **File**: tests/test_container_images.py — `ContainerImageTests.test_every_matrix_version_has_a_skills_overlay`, `test_dockerfile_ships_skills_and_selects_version_overlay`
+- Covers: REQ-CONTAINER-004, REQ-CONTAINER-007
+- **Status**: Passing
+
+### TEST-CONTAINER-007
+- **File**: tests/test_container_images.py — `ContainerImageTests.test_matrix_registry_is_electrohire`, `test_functional_files_have_no_bitconcepts_references`, `test_publish_workflow_targets_electrohire_ghcr`
+- Covers: REQ-CONTAINER-008
+- **Status**: Passing
+
+### TEST-CONTAINER-008
+- **File**: tests/test_container_images.py — `ContainerImageTests.test_base_image_is_version_appropriate`, `test_overlay_states_recommended_environment_and_copyright`, `test_full_env_test_script_and_workflow`
+- Covers: REQ-CONTAINER-007 (base images), REQ-CONTAINER-004 (overlay environment and copyright sections), REQ-CONTAINER-009 (full environment test, source level; the test itself runs in the container-full-test workflow)
+- **Status**: Passing
+
 ## Retained: Integration Tests (CI)
 
 ### TEST-BUILD-001

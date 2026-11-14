@@ -131,7 +131,12 @@ jobs:
       - name: Install west-env
         run: pip install -e ".[test]"
       - name: Install 32-bit build deps
-        run: sudo apt-get install -y --no-install-recommends gcc-multilib
+        # apt-get update first: the runner image's cached package lists
+        # can point at superseded package versions that 404 on the
+        # mirror (seen 2026-11-14: libc6-dev-i386 in this step).
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc-multilib
       - name: Cache west modules
         id: cache-west
         uses: actions/cache@v4

@@ -166,6 +166,21 @@ Retired requirements (REQ-ENGINE-*, REQ-CONTAINER-001, REQ-UTIL-002, REQ-CMD-001
 - **Status**: Planned (Slice 10)
 - **Description**: An optional TCP J-Link/GDB server mode is supported (`jlink.mode: tcp-server`) for container-side debugging via a J-Link GDB server running on the Windows host.
 
+### REQ-JLINK-005
+- **Component**: west_env.flash, west_env.config, west_commands.env
+- **Status**: Implemented (fork, 2026-11-13)
+- **Description**: Flash and debug target a specific probe and interface: `jlink.serial` in west-env.yml (or `--serial` on `west env flash`) is passed to J-Link as `-SelectEmuBySN`, and `jlink.interface` (`SWD` default, or `JTAG`) selects the target interface in the commander script and the GDB server. `west env flash` also accepts `--device`/`-device` in space or `=` form. Multi-probe benches require this: without a serial, J-Link picks an arbitrary probe.
+
+### REQ-JLINK-006
+- **Component**: west_env.flash
+- **Status**: Implemented (fork, 2026-11-13)
+- **Description**: On Windows the commander script is written to a real temporary file passed via `-CommanderScript` (the previous `/dev/stdin` path does not exist on Windows, so host flashing there could never run), and J-Link discovery probes both `JLinkExe.exe` and `JLink.exe` in PATH and the standard install directories, as docs/flashing.md already claimed.
+
+### REQ-JLINK-007
+- **Component**: west_env.flash
+- **Status**: Implemented (fork, 2026-11-13)
+- **Description**: A flash verdict is computed from the captured J-Link output, not the process exit code alone: J-Link exits 0 for many commander-script failures, so known failure markers in the output (for example "Cannot connect to target") raise an error even when the exit code is 0.
+
 ---
 
 ## VSCode Integration (REQ-VSCODE)
@@ -270,6 +285,36 @@ Retired requirements (REQ-ENGINE-*, REQ-CONTAINER-001, REQ-UTIL-002, REQ-CMD-001
 - **Component**: west_env.container
 - **Status**: Implemented
 - **Description**: Before running any command, the container layer executes `git config --global safe.directory '*'` inside the container so that Zephyr west extensions load under Git >= 2.35.
+
+### REQ-CONTAINER-004
+- **Component**: container/Dockerfile
+- **Status**: Implemented (fork, 2026-11-13)
+- **Description**: The build image ships Jacob Beningo's Zephyr AI skills (build-doctor, devicetree-author, kconfig-tuner, renode-runner, zephyr-bsp-scaffold, and the index) under `/opt/zephyr-skills/beningo/`, vendored from `container/skills/beningo/` at image build time, with `WEST_ENV_SKILLS_DIR=/opt/zephyr-skills` exported so agents and developers in the container share one copy. Provenance is recorded in the vendored index skill. The skills are version-agnostic across Zephyr 4.x except for a small set of version facts, so every per-version image also carries a version overlay: container/skills/version-overlays/<zephyr>.md holds the facts for one release (its SDK pin and series, the toolchain form, the requirements source), all overlays ship in the image under /opt/zephyr-skills/version-overlays/, and the Dockerfile copies the overlay matching the image's ZEPHYR_VERSION build arg to /opt/zephyr-skills/version-overlay.md at build time. The image also exports WEST_ENV_ZEPHYR_VERSION and WEST_ENV_ZEPHYR_SDK_VERSION so the active version is discoverable from inside the container.
+
+### REQ-CONTAINER-007
+- **Component**: container/Dockerfile, container/build-matrix.sh
+- **Status**: Implemented (fork, 2026-11-13)
+- **Description**: Build images are per Zephyr version. Each image carries exactly the SDK its Zephyr release pins (4.0.0/4.1.0 -> 0.17.0, 4.2.0 -> 0.17.2, 4.3.0 -> 0.17.4, 4.4.0/4.5.0 -> 1.0.1, read from each release's SDK_VERSION file) and exactly that release's Python requirements, selected by the ZEPHYR_VERSION / ZEPHYR_SDK_VERSION build args; the Dockerfile's SDK step branches on the SDK series (0.x monolithic tarball + setup.sh, 1.x *_gnu bundle). build-matrix.sh builds the supported set (4.0.0 through 4.5.0) or one named version, tagging ghcr.io/electrohire/zephyr-build-env:<zephyr>-sdk<sdk>-ubuntu<ubuntu>. Amended 2026-11-14 (version-appropriate base images, owner order): the base image is part of the per-version contract. Each release's getting-started documentation sets minimum CMake and Python versions (verified from the release tags: 4.0-4.3 need CMake >= 3.20.5 and Python >= 3.10; 4.4 needs Python >= 3.12; 4.5 needs CMake >= 3.28 and Python >= 3.12; all need dtc >= 1.4.6). Each image uses the oldest Ubuntu whose apt packages meet its release's minimums: Ubuntu 22.04 for 4.0-4.3 and Ubuntu 24.04 for 4.4 and 4.5, and the tag's ubuntu suffix names the base. Each version overlay states its release's recommended environment and the copyright and provenance position for the image's contents. This supersedes the dual-SDK arrangement of REQ-CONTAINER-005: one combined image forced union-installed Python requirements and carried every SDK's weight for every workspace, while a workspace is always exactly one Zephyr version and already names its image in west-env.yml.
+
+### REQ-CONTAINER-008
+- **Component**: repository home, container/build scripts, .github/workflows/container-images.yml
+- **Status**: Implemented (2026-11-14, owner order: BitConcepts is being retired; ElectroHire is the project's new home)
+- **Description**: The project's canonical home is the ElectroHire GitHub organisation: the repository is electrohire/west-env and the build images are published to ghcr.io/electrohire/zephyr-build-env. No functional file (build scripts, docs, examples, defaults) references the former BitConcepts home. Images are published from GitHub Actions (the container-images workflow, manual dispatch, one matrix job per supported Zephyr version) using the workflow's own GITHUB_TOKEN with packages: write; each job verifies its published image (Beningo skills present, the version overlay for its Zephyr release selected, the SDK version file equal to the release's pin, west runnable) before it counts as published. Local builds through build-matrix.sh / build.sh / build.cmd tag the same ElectroHire registry path.
+
+### REQ-CONTAINER-009
+- **Component**: container/tests/full-env-test.sh, .github/workflows/container-full-test.yml
+- **Status**: Implemented (2026-11-14, owner order)
+- **Description**: Each per-version image carries a full environment test (container/tests/full-env-test.sh, installed in the image at /opt/west-env/full-env-test.sh). Run inside the image with a west workspace of the matching Zephyr release mounted at /work, the test builds samples/bluetooth/peripheral for nrf52840dk/nrf52840 twice, as a debug sysbuild (debug optimizations, asserts on) and a release sysbuild (speed optimizations), both with MCUboot enabled via sysbuild.conf, and requires the MCUboot image and the imgtool-signed application binary from each build; the signed binary proves the release's Python requirements (imgtool, cryptography, intelhex) work, not just install. The sample is copied to scratch space and only the copy is adjusted; the workspace tree is never modified and the sample's own copyright and SPDX headers travel with the copy untouched. The container-full-test workflow builds a workspace from each Zephyr release and runs the test per published version; the script's FULLTEST_ALL_OK line and exit code are the verdict.
+
+### REQ-CONTAINER-006
+- **Component**: west_env/container.py, west_env/sync.py, west_commands/env.py
+- **Status**: Implemented (fork, 2026-11-13)
+- **Description**: Container commands (build, shell, workspace checks) honor `env.workspace_mode`. In bind mode the host workspace directory is mounted at /work; in the sync family (sync, copy, tmpfs) the volume populated by `west env sync` (`west-env-ws-<slug>`) is mounted instead, using WorkspaceSync.volume_args as the single source of truth for the mount spec, and running a container command before the volume exists fails fast with a message naming `west env sync` as the remedy. Previously the host directory was mounted unconditionally, so a configured sync workspace silently built against the host tree (on Windows, a C:\ bind mount, the failure mode sync mode exists to avoid). Three companion defects in the same sync path were fixed with it: (1) `.west` is no longer in the sync DEFAULT_EXCLUDES, because the container-side west needs .west/config to recognise /work as a workspace topdir (without it every container west command in sync mode failed with "unknown command"); (2) artifact sync-back searches every build tree in the volume (any path containing a build directory), not only /work/build, so application layouts with the build directory under the app (application/build/<cfg>) return their artifacts; (3) `west env sync --back` honours the --back flag when it appears after the action, as documented, instead of argparse's REMAINDER passthrough silently turning it into a forward sync.
+
+### REQ-CONTAINER-005
+- **Component**: container/Dockerfile, container/build.sh, container/build.cmd
+- **Status**: Implemented (fork, 2026-11-13); the dual-SDK arrangement is superseded by REQ-CONTAINER-007 (per-version images)
+- **Description**: The image carries the current Zephyr SDK 1.0.1 (the SDK Zephyr 4.5 pins in its SDK_VERSION file; installed from the SDK 1.0 *_gnu bundle, the successor of the 0.x monolithic tarball) as the default at /opt/zephyr-sdk, and keeps SDK 0.17.4 at /opt/zephyr-sdk-0.17.4 for Zephyr 4.2/4.3 workspaces, whose find_package version ranges reject the 1.0 series. Both cmake packages are registered so each workspace selects its compatible SDK, and the Python requirements of both Zephyr series (v4.5.0 and v4.2.0) are installed.
 
 ---
 

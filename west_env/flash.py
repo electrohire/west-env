@@ -11,8 +11,10 @@ TCP server mode (jlink.mode = tcp-server):
   GDB inside the container connects via TCP (configurable port, default 2331).
 """
 
+import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from shutil import which
 from typing import Optional
@@ -37,34 +39,47 @@ _JLINK_SEARCH_PATHS_MAC = [
 ]
 
 
+def _jlink_candidates(name: str) -> list:
+    """Executable name candidates for a J-Link tool.
+
+    On Windows the J-Link commander ships as both ``JLink.exe`` (the name
+    SEGGER's installer has used for years) and ``JLinkExe.exe``; probe both
+    so discovery matches docs/flashing.md ("both probed").
+    """
+    if sys.platform == "win32" and name == "JLinkExe":
+        return ["JLinkExe", "JLink"]
+    return [name]
+
+
 def find_jlink_exe(name: str = "JLinkExe") -> Optional[Path]:
     """Return the path to a J-Link executable, or None if not found."""
-    # Check PATH first
-    found = which(name)
-    if found:
-        return Path(found)
-
-    # Windows also checks .exe
-    if sys.platform == "win32":
-        found = which(name + ".exe")
+    for cand in _jlink_candidates(name):
+        # Check PATH first
+        found = which(cand)
         if found:
             return Path(found)
-        for search in _JLINK_SEARCH_PATHS_WIN:
-            candidate = Path(search) / (name + ".exe")
-            if candidate.is_file():
-                return candidate
 
-    elif sys.platform == "darwin":
-        for search in _JLINK_SEARCH_PATHS_MAC:
-            candidate = Path(search) / name
-            if candidate.is_file():
-                return candidate
+        # Windows also checks .exe
+        if sys.platform == "win32":
+            found = which(cand + ".exe")
+            if found:
+                return Path(found)
+            for search in _JLINK_SEARCH_PATHS_WIN:
+                candidate = Path(search) / (cand + ".exe")
+                if candidate.is_file():
+                    return candidate
 
-    else:  # Linux
-        for search in _JLINK_SEARCH_PATHS_LINUX:
-            candidate = Path(search) / name
-            if candidate.is_file():
-                return candidate
+        elif sys.platform == "darwin":
+            for search in _JLINK_SEARCH_PATHS_MAC:
+                candidate = Path(search) / cand
+                if candidate.is_file():
+                    return candidate
+
+        else:  # Linux
+            for search in _JLINK_SEARCH_PATHS_LINUX:
+                candidate = Path(search) / cand
+                if candidate.is_file():
+                    return candidate
 
     return None
 
@@ -74,12 +89,35 @@ def find_jlink_exe(name: str = "JLinkExe") -> Optional[Path]:
 # ---------------------------------------------------------------------------
 
 
+# Substrings J-Link prints when a flash actually failed. J-Link exits 0 for
+# many commander-script failures, so the exit code alone is not a verdict;
+# the output must be checked as well.
+_JLINK_ERROR_MARKERS = (
+    "Cannot connect to target",
+    "Cannot connect to J-Link",
+    "Failed to connect",
+    "No target device",
+    "ERROR: Cannot",
+)
+
+
 class FlashManager:
     """Manages J-Link host flashing and debug server."""
 
-    def __init__(self, jlink_mode: str = "host", gdb_port: int = 2331):
+    def __init__(
+        self,
+        jlink_mode: str = "host",
+        gdb_port: int = 2331,
+        serial: Optional[str] = None,
+        interface: str = "SWD",
+    ):
         self.mode = jlink_mode
         self.gdb_port = gdb_port
+        self.serial = str(serial) if serial else None
+        iface = (interface or "SWD").upper()
+        if iface not in {"SWD", "JTAG"}:
+            raise ValueError(f"unsupported jlink interface: {interface!r} (expected SWD or JTAG)")
+        self.interface = iface
 
     def flash(self, artifact: Path, device: str = "auto", extra_args: Optional[list] = None):
         """Flash a firmware artifact using the host J-Link.
@@ -102,33 +140,52 @@ class FlashManager:
 
         # Build a J-Link commander script
         script_lines = [
-            "si SWD",
+            f"si {self.interface}",
             "speed 4000",
         ]
         if device and device != "auto":
             script_lines.insert(0, f"device {device}")
 
         ext = artifact.suffix.lower()
-        if ext == ".hex":
-            script_lines += [f"loadfile {artifact}", "r", "g", "exit"]
-        elif ext in (".elf", ".bin"):
+        if ext in (".hex", ".elf", ".bin"):
             script_lines += [f"loadfile {artifact}", "r", "g", "exit"]
         else:
             raise ValueError(f"Unsupported artifact extension: {ext!r}")
 
-        script = "\n".join(script_lines)
+        script = "\n".join(script_lines) + "\n"
 
-        cmd = [str(jlink), "-autoconnect", "1", "-commanderscript", "/dev/stdin"]
-        if extra_args:
-            cmd += extra_args
+        # The commander script goes through a real temp file: the previous
+        # implementation passed /dev/stdin, which does not exist on Windows,
+        # so host flashing on Windows could never run.
+        script_path = None
+        try:
+            with tempfile.NamedTemporaryFile("w", suffix=".jlink", prefix="west-env-flash-", delete=False) as fh:
+                fh.write(script)
+                script_path = fh.name
 
-        proc = subprocess.run(
-            cmd,
-            input=script,
-            text=True,
-        )
+            cmd = [str(jlink), "-autoconnect", "1"]
+            if self.serial:
+                cmd += ["-SelectEmuBySN", self.serial]
+            cmd += ["-CommanderScript", script_path]
+            if extra_args:
+                cmd += extra_args
+
+            proc = subprocess.run(cmd, capture_output=True, text=True)
+        finally:
+            if script_path:
+                try:
+                    os.unlink(script_path)
+                except OSError:
+                    pass
+
+        output = (proc.stdout or "") + (proc.stderr or "")
+        if output:
+            print(output, end="" if output.endswith("\n") else "\n")
         if proc.returncode != 0:
             raise RuntimeError(f"JLink flash failed with exit code {proc.returncode}")
+        for marker in _JLINK_ERROR_MARKERS:
+            if marker in output:
+                raise RuntimeError(f"J-Link reported an error during flash: {marker}")
 
     def start_gdb_server(self, device: str, port: Optional[int] = None) -> subprocess.Popen:
         """Start a J-Link GDB server on the host.
@@ -151,13 +208,15 @@ class FlashManager:
             "-device",
             device,
             "-if",
-            "SWD",
+            self.interface,
             "-speed",
             "4000",
             "-port",
             str(_port),
             "-nogui",
         ]
+        if self.serial:
+            cmd += ["-SelectEmuBySN", self.serial]
         return subprocess.Popen(cmd)
 
 

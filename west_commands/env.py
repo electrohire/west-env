@@ -197,7 +197,14 @@ class EnvCommand(WestCommand):
             self._doctor(cfg, use_container)
 
         elif action == "sync":
-            self._sync(cfg, args.workspace_mode or cfg.workspace_mode, back=getattr(args, "back", False))
+            # The '--back' flag is commonly given after the action
+            # ('west env sync --back', as the docs show), but argparse
+            # routes everything after the action into the REMAINDER
+            # passthrough, so args.back stays False. Honour the flag
+            # from the passthrough as well, or the command silently
+            # performs a forward sync instead of the artifact return.
+            back = getattr(args, "back", False) or "--back" in passthrough
+            self._sync(cfg, args.workspace_mode or cfg.workspace_mode, back=back)
 
         elif action == "flash":
             self._flash(cfg, passthrough)
@@ -365,6 +372,31 @@ class EnvCommand(WestCommand):
             else:
                 print("[INFO] bind mode: no sync needed; host path mounted directly")
 
+    @staticmethod
+    def _extract_option(args, *names):
+        """Remove ``--name value`` / ``--name=value`` from args; return (value, rest)."""
+        rest = []
+        value = None
+        i = 0
+        while i < len(args):
+            arg = args[i]
+            matched = None
+            for name in names:
+                if arg == name:
+                    matched = name
+                    if i + 1 < len(args):
+                        value = args[i + 1]
+                        i += 1
+                    break
+                if arg.startswith(name + "="):
+                    matched = name
+                    value = arg.split("=", 1)[1]
+                    break
+            if matched is None:
+                rest.append(arg)
+            i += 1
+        return value, rest
+
     def _flash(self, cfg, passthrough):
         from west_env.flash import FlashManager
 
@@ -373,13 +405,24 @@ class EnvCommand(WestCommand):
         artifact = passthrough[0] if passthrough else None
         if not artifact:
             raise SystemExit("Usage: west env flash <artifact.hex>")
-        fm = FlashManager(jlink_mode=cfg.jlink_mode)
-        fm.flash(Path(artifact), extra_args=passthrough[1:] or None)
+        rest = list(passthrough[1:])
+        device, rest = self._extract_option(rest, "--device", "-device")
+        serial, rest = self._extract_option(rest, "--serial")
+        fm = FlashManager(
+            jlink_mode=cfg.jlink_mode,
+            serial=serial or cfg.jlink_serial,
+            interface=cfg.jlink_interface,
+        )
+        fm.flash(Path(artifact), device=device or "auto", extra_args=rest or None)
 
     def _debug(self, cfg, passthrough):
         from west_env.flash import FlashManager
 
-        fm = FlashManager(jlink_mode=cfg.jlink_mode)
+        fm = FlashManager(
+            jlink_mode=cfg.jlink_mode,
+            serial=cfg.jlink_serial,
+            interface=cfg.jlink_interface,
+        )
         device = passthrough[0] if passthrough else "auto"
         print(f"Starting J-Link GDB server (device={device}, port={fm.gdb_port})...")
         proc = fm.start_gdb_server(device)
