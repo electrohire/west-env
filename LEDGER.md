@@ -1,5 +1,11 @@
 # Change Ledger
 
+## 2026-11-14 — Fix: pip upgrade on Ubuntu 24.04 bases (4.4/4.5 image builds)
+
+The first container-images runs for Zephyr 4.4.0 and 4.5.0 failed their build payloads: Ubuntu 24.04's pip is a Debian package with no RECORD file, so `pip install --upgrade pip` cannot uninstall it and exits 1 ("Cannot uninstall pip 24.0, RECORD file not found"). The 22.04 images (4.0.0, 4.1.0, 4.2.0, 4.3.0) published and verified fine (IMAGE_VERIFY_OK each). Fix: the Dockerfile's pip upgrade now passes --ignore-installed, installing the new pip over the Debian one; TEST-CONTAINER-008 pins it.
+
+---
+
 ## 2026-11-14 — Project moved to ElectroHire; images published from CI; per-version skills overlays
 
 Objective: Owner order (iSMART chat, 2026-11-14): resume the west-env work and finish it, put the dockers on GitHub, move everything to ElectroHire (BitConcepts is being retired and ElectroHire is the new home), update all docs, and make sure the Zephyr skills are in every container, adjusted per version where versions differ.
