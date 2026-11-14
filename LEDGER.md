@@ -23,6 +23,17 @@ Open TODOs:
 - [ ] Build the image and verify: skills present at /opt/zephyr-skills/beningo, both SDKs registered, a Zephyr 4.2 workspace build (iSMART control) and a 4.5 sample build
 - [ ] TEST-JLINK-001/002 on real hardware (iSMART control board, probe serial 69656048, JTAG)
 
+---
+
+# 2026-11-13 — workspace_mode honored by container commands; install route corrected
+
+**Scope**: west_env/container.py, tests/test_container.py, docs (quickstart-windows, quickstart-linux, REQUIREMENTS REQ-CONTAINER-006).
+
+Two defects found driving the iSMART control workspace (Zephyr 4.2, workspace_mode sync) from a Linux/WSL host:
+
+1. `west env build` ignored the configured workspace_mode: _container_args always bind-mounted the host workspace at /work, even in sync mode with the volume already populated by `west env sync`. On the bench this bind-mounted a DrvFs path and the build died in Zephyr's pristine step over a stale Windows CMakeCache. Fix: bind mode mounts the host directory; the sync family mounts the `west-env-ws-<slug>` volume, and run_container fails fast naming `west env sync` when the volume does not exist yet. Two existing tests now pin workspace_mode=bind explicitly (their legacy configs previously relied on the platform default); two new tests cover the volume mount and the missing-volume guard. Suite: 157 passed, 13 skipped, ruff clean.
+2. The quickstarts presented `pip install -e` as a peer install route. Against west 1.5 it registers nothing: west's extension loader (west/commands.py extension_commands) reads manifest projects only, which the bench proved end to end (`west: unknown command "env"` with the package installed and its entry point present). Both quickstarts now lead with the manifest `west-commands:` entry and state plainly that pip alone is insufficient.
+
 Risks: FlashManager output markers are substring-based; a future J-Link version rewording its errors could false-negative (flash would report success on a failed write). The bench flow keeps its own identity read-back gates, which catch that case.
 
 ## 2026-05-13 — Session end

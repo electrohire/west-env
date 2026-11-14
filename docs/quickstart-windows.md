@@ -16,13 +16,24 @@
 
 ## 1. Install west-env
 
-In your west workspace root:
+Reference it from your west manifest using `west-commands:` (required
+with current west, which loads extension commands from manifest
+projects only):
 
-```powershell
-pip install -e path/to/west-env
+```yaml
+    - name: west-env
+      url: https://github.com/BitConcepts/west-env
+      revision: main
+      path: modules/west-env
+      west-commands: west-commands.yml
 ```
 
-Or reference it from your west manifest using `west-commands:`.
+Then run `west update west-env`. A `pip install -e path/to/west-env`
+additionally puts the `west_env` Python package on the host, but by
+itself it does NOT register the `west env` command: west (verified
+against west 1.5) discovers extension commands exclusively through
+manifest projects, so the manifest entry above is the load-bearing
+step.
 
 ---
 

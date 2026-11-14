@@ -15,6 +15,17 @@ def _west_topdir():
     return west_topdir()
 
 
+def workspace_volume_name(workspace) -> str:
+    """Name of the engine volume holding the synced workspace copy.
+
+    Must match the name `west env sync` populates (see
+    west_commands/env.py and west_env/sync.py).
+    """
+    from west_env.sync import _workspace_slug
+
+    return f"west-env-ws-{_workspace_slug(Path(workspace))}"
+
+
 def _container_workdir(workspace, host_cwd):
     try:
         rel = host_cwd.relative_to(workspace)
@@ -39,11 +50,24 @@ def _container_args(cfg, command, interactive=False, workspace=None, host_cwd=No
     # -------------------------------------------------
     # Prepare container invocation
     # -------------------------------------------------
+    # workspace_mode decides what is mounted at /work:
+    #   bind          -> the host workspace directory itself
+    #   sync/copy/tmpfs -> the volume that `west env sync` populated
+    # Mounting the host directory in the sync-family modes (the old
+    # behaviour) silently ignored the configured mode and rebuilt
+    # against the host tree, which on Windows bind-mounts a C:\ path
+    # into the container: the exact failure sync mode exists to avoid.
+    mode = getattr(cfg, "workspace_mode", "bind")
+    if mode == "bind":
+        mount_source = str(workspace)
+    else:
+        mount_source = workspace_volume_name(workspace)
+
     args = [
         "run",
         "--rm",
         "-v",
-        f"{workspace}:{CONTAINER_WORKDIR}",
+        f"{mount_source}:{CONTAINER_WORKDIR}",
         "-w",
         container_wd,
         "-e",
@@ -82,6 +106,22 @@ def run_container(cfg, command, interactive=False):
 
     if warned:
         print("[WARN] Both Docker and Podman detected; using Docker")
+
+    mode = getattr(cfg, "workspace_mode", "bind")
+    if mode != "bind":
+        # The engine would auto-create an empty volume here, and the
+        # command would then fail against an empty /work with a
+        # confusing error. Fail fast with the actual remedy instead.
+        volume = workspace_volume_name(_west_topdir())
+        res = subprocess.run(
+            [engine.name, "volume", "inspect", volume],
+            capture_output=True,
+        )
+        if res.returncode != 0:
+            raise RuntimeError(
+                f"workspace volume {volume} does not exist "
+                f"(workspace_mode={mode}); run 'west env sync' first"
+            )
 
     engine.run(args)
 

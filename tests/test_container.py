@@ -23,6 +23,7 @@ class ContainerTests(unittest.TestCase):
             {
                 "env": {
                     "type": "container",
+                    "workspace_mode": "bind",
                     "container": {
                         "engine": "docker",
                         "image": "ghcr.io/example/image:latest",
@@ -95,6 +96,7 @@ class ContainerTests(unittest.TestCase):
             {
                 "env": {
                     "type": "container",
+                    "workspace_mode": "bind",
                     "container": {
                         "engine": "podman",
                         "image": "ghcr.io/example/image:latest",
@@ -124,6 +126,77 @@ class ContainerTests(unittest.TestCase):
                 run_container(cfg, ["west", "build"])
 
         engine.run.assert_called_once()
+
+    def test_container_args_sync_mode_mounts_volume(self):
+        cfg = EnvConfig(
+            {
+                "env": {
+                    "backend": "docker-native",
+                    "workspace_mode": "sync",
+                    "image": "ghcr.io/example/image:latest",
+                }
+            }
+        )
+        engine = Mock(name="engine")
+        engine.name = "docker"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            with patch(
+                "west_env.container.get_engine",
+                return_value=(engine, False),
+            ):
+                _, _, args = _container_args(
+                    cfg,
+                    ["west", "build"],
+                    workspace=workspace,
+                    host_cwd=workspace,
+                )
+
+        from west_env.sync import _workspace_slug
+
+        volume = f"west-env-ws-{_workspace_slug(workspace.resolve())}"
+        self.assertIn(f"{volume}:/work", args)
+        self.assertNotIn(f"{workspace.resolve()}:/work", args)
+
+    def test_run_container_sync_mode_missing_volume_raises(self):
+        cfg = EnvConfig(
+            {
+                "env": {
+                    "backend": "docker-native",
+                    "workspace_mode": "sync",
+                    "image": "ghcr.io/example/image:latest",
+                }
+            }
+        )
+        engine = Mock(name="engine")
+        engine.name = "docker"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            workspace = Path(tmp)
+            with (
+                patch(
+                    "west_env.container.get_engine",
+                    return_value=(engine, False),
+                ),
+                patch(
+                    "west_env.container._west_topdir",
+                    return_value=str(workspace),
+                ),
+                patch(
+                    "west_env.container.Path.cwd",
+                    return_value=workspace,
+                ),
+                patch(
+                    "west_env.container.subprocess.run",
+                    return_value=Mock(returncode=1),
+                ),
+            ):
+                with self.assertRaises(RuntimeError) as ctx:
+                    run_container(cfg, ["west", "build"])
+
+        self.assertIn("west env sync", str(ctx.exception))
+        engine.run.assert_not_called()
 
     def test_check_container_workspace_uses_selected_engine(self):
         cfg = EnvConfig(

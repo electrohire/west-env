@@ -291,6 +291,11 @@ Retired requirements (REQ-ENGINE-*, REQ-CONTAINER-001, REQ-UTIL-002, REQ-CMD-001
 - **Status**: Implemented (fork, 2026-11-13)
 - **Description**: The build image ships Jacob Beningo's Zephyr AI skills (build-doctor, devicetree-author, kconfig-tuner, renode-runner, zephyr-bsp-scaffold, and the index) under `/opt/zephyr-skills/beningo/`, vendored from `container/skills/beningo/` at image build time, with `WEST_ENV_SKILLS_DIR=/opt/zephyr-skills` exported so agents and developers in the container share one copy. Provenance is recorded in the vendored index skill.
 
+### REQ-CONTAINER-006
+- **Component**: west_env/container.py
+- **Status**: Implemented (fork, 2026-11-13)
+- **Description**: Container commands (build, shell, workspace checks) honor `env.workspace_mode`. In bind mode the host workspace directory is mounted at /work; in the sync family (sync, copy, tmpfs) the volume populated by `west env sync` (`west-env-ws-<slug>`) is mounted instead, and running a container command before the volume exists fails fast with a message naming `west env sync` as the remedy. Previously the host directory was mounted unconditionally, so a configured sync workspace silently built against the host tree (on Windows, a C:\ bind mount, the failure mode sync mode exists to avoid).
+
 ### REQ-CONTAINER-005
 - **Component**: container/Dockerfile, container/build.sh, container/build.cmd
 - **Status**: Implemented (fork, 2026-11-13)
