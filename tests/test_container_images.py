@@ -117,6 +117,9 @@ class ContainerImageTests(unittest.TestCase):
         self.assertIn("ARG BASE_IMAGE=", dockerfile)
         self.assertIn("FROM ${BASE_IMAGE}", dockerfile)
         self.assertIn("PIP_BREAK_SYSTEM_PACKAGES=1", dockerfile)
+        # Ubuntu 24.04's pip is Debian-packaged with no RECORD file;
+        # the upgrade must install over it or the 24.04 builds fail.
+        self.assertIn("--ignore-installed --upgrade pip", dockerfile)
 
     def test_overlay_states_recommended_environment_and_copyright(self):
         overlays = CONTAINER_DIR / "skills" / "version-overlays"

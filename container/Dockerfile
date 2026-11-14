@@ -50,7 +50,11 @@ RUN apt-get update && \
 # allow them explicitly. Older pip versions ignore this variable.
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
 
-RUN python3 -m pip install --no-cache-dir --upgrade pip && \
+# --ignore-installed on the pip upgrade: Ubuntu 24.04's pip is a
+# Debian package with no RECORD file, so pip cannot uninstall it and
+# a plain --upgrade fails the build (seen in the 4.4/4.5 image jobs,
+# 2026-11-14). Installing over it is the container-correct route.
+RUN python3 -m pip install --no-cache-dir --ignore-installed --upgrade pip && \
     python3 -m pip install --no-cache-dir west
 
 # ------------------------------------------------------------
