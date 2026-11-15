@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on Ubuntu 22.04; the tag suffix names the base. Each version
   overlay now also states its release's recommended
   environment and the copyright and provenance position.
+- Fixed the full environment test workflow for Zephyr 4.5: the runner now installs the tree's scripts/requirements-base.txt before running west commands (4.5's export path imports jsonschema).
 - Fixed the Ubuntu 24.04 image builds (Zephyr 4.4/4.5): the pip upgrade step now installs over the Debian-packaged pip (--ignore-installed), which has no RECORD file and cannot be uninstalled.
 - Every image carries a full environment test
   (`/opt/west-env/full-env-test.sh`): debug and release
