@@ -1,5 +1,9 @@
 # Change Ledger
 
+## 2026-11-14 — Fix: full-test workflow installs the tree's base requirements
+
+The container-full-test run passed 5 of 6 versions (4.0.0, 4.1.0, 4.2.0, 4.3.0, 4.4.0: FULLTEST_ALL_OK payloads) but the 4.5.0 job failed in its "Build the west workspace" step, before any container ran: Zephyr 4.5's west extension commands import jsonschema and the runner only had west installed. Fix: the workflow now installs the checked-out tree's scripts/requirements-base.txt on the runner before west init/update/zephyr-export. A workflow gap, not an image defect; the images carry the full requirements themselves.
+
 ## 2026-11-14 — Fix: pip upgrade on Ubuntu 24.04 bases (4.4/4.5 image builds)
 
 The first container-images runs for Zephyr 4.4.0 and 4.5.0 failed their build payloads: Ubuntu 24.04's pip is a Debian package with no RECORD file, so `pip install --upgrade pip` cannot uninstall it and exits 1 ("Cannot uninstall pip 24.0, RECORD file not found"). The 22.04 images (4.0.0, 4.1.0, 4.2.0, 4.3.0) published and verified fine (IMAGE_VERIFY_OK each). Fix: the Dockerfile's pip upgrade now passes --ignore-installed, installing the new pip over the Debian one; TEST-CONTAINER-008 pins it.

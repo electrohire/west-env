@@ -81,6 +81,10 @@ jobs:
         run: |
           pip install west
           cd ws
+          # The tree's west extension commands import more than west
+          # itself (Zephyr 4.5's export path imports jsonschema, which
+          # failed this step before any container ran, 2026-11-14).
+          pip install -r zephyr/scripts/requirements-base.txt
           west init -l zephyr
           west update
           west zephyr-export
